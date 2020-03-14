@@ -1,0 +1,76 @@
+// class Bullet client side
+class Bullet{
+	var col;
+	var player_index;
+	var position;
+	var direction;
+	var speed;
+	var gun; // se 1 railgun se 2 rocket e di conseguenza inizializzo il resto dei valori
+	var mesh;
+	var obj;
+	var damage;
+	var alive;
+	var walled;
+	var seq_number;
+	var last_validation;
+	var texture;
+	var material;
+	init(pos, dir, c, i, g, on, seq);
+	update();
+	draw();
+	isAlive();
+	isWalled();
+};
+
+function bullet::init(pos, dir, c, i, g, on, seq){
+	last_validation = getTime();
+	seq_number = seq;
+	player_index = i;
+	position = pos;
+	direction = dir;
+	gun = g;
+	col = c;
+	mesh = CVmNewMesh(VRP_SPHERE);
+	if(g == 1){
+		//railgun
+		speed = 0.6;
+		damage = 1;
+		mesh.scale(0.1);
+	} else{
+		//rocket
+		speed = 0.4;
+		damage = 5;
+		mesh.scale(0.3);
+	}
+	alive = on;
+	walled = false;
+	
+	texture = CVmTexture("bullet_metal.jpg");	
+	material = CVmMaterial();
+	material.setTexture(texture);
+	
+	mesh.setMaterial(material);
+	mesh.modulateMaterials(col);
+	obj = CVmObj(mesh);
+	obj.setPosition(position);
+}
+
+function bullet::update(){
+	var current_time = getTime();
+	if(current_time - last_validation > 550)
+		alive = false;	
+	position += direction * speed;
+	obj.setposition(position);
+}
+
+function bullet::draw(){
+	obj.draw();
+}
+
+function bullet::isAlive(){
+	return alive;
+}
+
+function bullet::isWalled(){
+	return alive;
+}

@@ -1,0 +1,9 @@
+client/*.txt
+
+*.dbg
+
+*.bin
+
+*.asm
+
+server/ip.txt

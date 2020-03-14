@@ -1,0 +1,33 @@
+
+Configurazione IP di Windows
+
+
+Scheda LAN wireless Connessione alla rete locale (LAN)* 1:
+
+   Stato supporto. . . . . . . . . . . . : Supporto disconnesso
+   Suffisso DNS specifico per connessione: 
+
+Scheda LAN wireless Connessione alla rete locale (LAN)* 2:
+
+   Stato supporto. . . . . . . . . . . . : Supporto disconnesso
+   Suffisso DNS specifico per connessione: 
+
+Scheda Ethernet Ethernet:
+
+   Suffisso DNS specifico per connessione: 
+   Indirizzo IPv6 . . . . . . . . . . . . . . . . . : fdbc:7574:e6ab:2200:7d45:6989:33dc:b0c4
+   Indirizzo IPv6 temporaneo. . . . . . . . . . . . : fdbc:7574:e6ab:2200:dcee:bb1f:2a4b:1d47
+   Indirizzo IPv6 locale rispetto al collegamento . : fe80::7d45:6989:33dc:b0c4%15
+   Indirizzo IPv4. . . . . . . . . . . . : 192.168.1.14
+   Subnet mask . . . . . . . . . . . . . : 255.255.255.0
+   Gateway predefinito . . . . . . . . . : 192.168.1.1
+
+Scheda Ethernet Connessione di rete Bluetooth:
+
+   Stato supporto. . . . . . . . . . . . : Supporto disconnesso
+   Suffisso DNS specifico per connessione: 
+
+Scheda LAN wireless Wi-Fi:
+
+   Stato supporto. . . . . . . . . . . . : Supporto disconnesso
+   Suffisso DNS specifico per connessione: 

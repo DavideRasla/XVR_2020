@@ -1,0 +1,49 @@
+// server Bullet
+class Bullet{
+	var col;
+	var player_index;
+	var position;
+	var direction;
+	var speed;
+	var gun; // se 1 railgun se 2 rocket e di conseguenza inizializzo il resto dei valori
+	var mesh;
+	var obj;
+	var alive;
+	var seq_number;
+	init(pos, dir, c, i, g, on, seq);
+	update();
+	isAlive();
+};
+
+function bullet::init(pos, dir, c, i, g, on, seq){
+	seq_number = seq;
+	player_index = i;
+	position = pos;
+	direction = dir;
+	col = c;
+	gun = g;
+	mesh = cvmNewMesh(VRP_SPHERE);
+	if(g == 1){
+		//railgun
+		speed = 0.6;
+		mesh.scale(0.1);
+	} else{
+		//rocket
+		speed = 0.4;
+		mesh.scale(0.5);
+	}
+	alive = on;
+			
+	obj = CVmObj(mesh);
+	obj.SetPosition(position);
+}
+
+function bullet::update(){
+	position += direction * speed;
+	obj.setposition(position);
+	obj.draw();
+}
+
+function bullet::isAlive(){
+	return alive;
+}

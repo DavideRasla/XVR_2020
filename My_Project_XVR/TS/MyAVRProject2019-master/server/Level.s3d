@@ -1,0 +1,57 @@
+var num_rows;
+var num_columns;
+var f;
+
+class Level{
+	var wall_mesh;
+	var wall_ext_mesh;
+	var level_obj;
+	init(level_textfile);
+	draw();
+};
+
+function level::init(level_textfile){
+	level_obj = array(0);
+	
+	wall_mesh = CVmNewMesh(VRP_BOX);
+	
+	wall_ext_mesh = CVmNewMesh(VRP_BOX);
+
+	f = loadfile(level_textfile);
+		
+	num_rows = len(f);
+	num_columns = len(f[0]);
+	
+	for(var i = 0; i < num_rows; i++){
+		for (var j = 0; j < num_columns; j++){
+			if (f[i][j] == "3"){
+				var t1 = CVmObj(wall_mesh);
+				var t2 = CVmObj(wall_mesh);
+				var t3 = CVmObj(wall_mesh);
+				t1.setposition(j, 0.0, i);
+				aadd(level_obj, t1);
+				t2.setposition(j, 1.0, i);
+				aadd(level_obj, t2);
+				t3.setposition(j, 2.0, i);
+				aadd(level_obj, t3);
+			} else if (f[i][j] == "2"){
+				var t1 = CVmObj(wall_mesh);
+				var t2 = CVmObj(wall_mesh);
+				t1.setposition(j, 0.0, i);
+				aadd(level_obj, t1);
+				t2.setposition(j, 1.0, i);
+				aadd(level_obj, t2);
+			} else if (f[i][j] == "1"){
+				var t1 = CVmObj(wall_mesh);
+				t1.setposition(j, 0.0, i);
+				aadd(level_obj, t1);	
+			}
+		}
+	}
+}
+
+function level::draw(){
+	foreach (var t in level_obj){
+		t.draw();		
+	}
+}

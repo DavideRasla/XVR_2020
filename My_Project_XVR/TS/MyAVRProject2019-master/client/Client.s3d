@@ -1,0 +1,542 @@
+/* Include s3d symbols */
+#include <Script3d.h>
+#include <Camera.s3d.h>
+
+#include "Networking.s3d"
+#include "Player.s3d"
+#include "Level.s3d"
+
+#define MAX_PLAYERS 4
+
+#define CONNECT_REQ_PDU 0
+#define CONNECT_RESP_PDU 1
+#define DISCONNECT_REQ_PDU 2
+#define POSITION_UPDATE_PDU 4
+#define ENEMY_POSITION_PDU 5
+#define ENEMY_DISCONNECTION_PDU 6
+#define PING 7
+#define SCORE_PDU 11
+#define SERVER_CLOSED 13
+
+#define OK 1
+#define ERR -1
+
+//#define CAMERA_OFFSET [0.0, 1.2, 0.0]
+#define CAMERA_OFF_Z -0.4
+#define CAMERA_OFF_Y 1.2
+#define CAMERA_OFF_X -0.4
+//#define CAMERA_PIVOT 0.0, 0.0, 0.4
+
+/* Set global scene parameters */
+SET SCENE_FOV  = 60;
+SET SCENE_NEAR = 0.5;
+SET SCENE_FAR  = 1000;
+
+// TODO: put your global variables here
+var my_id;
+var broadcast_address;
+var connected = false;
+
+var aplayer = array(MAX_PLAYERS);
+var aplayer_color = {[1,0,0], [0,1,0], [0,0,1], [1,1,0]};
+var online_player = array(MAX_PLAYERS);
+var is_enemy_updated = array(MAX_PLAYERS);
+
+var my_ip;
+
+var level_obj_l;
+var my_level;
+
+var score = array(MAX_PLAYERS);
+var score_ids = array(MAX_PLAYERS);
+/* Camera globals */
+var window = CVmWebBrowser();
+var fs = false;
+var last_fs;
+
+/* Light globals */
+var Light0;
+var PosL = [16.0, 20, 16.0];
+var Light1;
+var PosL1 = [0.0, 20, 0.0];	
+var Light2;
+var PosL2 = [0.0, 20, 32.0];	
+var Light3;
+var PosL3 = [32.0, 20, 0.0];	
+var Light4;
+var PosL4 = [32.0, 20, 32.0];	
+
+/* Function declarations */
+function CameraMove();
+function DrawGrid(col, size);
+
+function OnDownload(){
+	// TODO: download your resources here
+	// E.g.: FileDownload("resource.ext");
+	FileDownload("XVRResources.zip");
+}
+
+var failed_attempts = 0;
+
+function OnExit(){
+	if(connected){
+		//Send disconnection PDU to the server
+		outputln("Disconnession... \n");
+		var PDU = array(4);
+		PDU[0] = DISCONNECT_REQ_PDU;
+		PDU[1] = my_ip;
+		PDU[2] = my_id;
+		PDU[3] = my_index;
+		mysend(server_ip, PDU);
+		
+		//Wait for the ack
+		var address1 = "................";
+		var received_data;
+		var recv = false;
+		var old_time = getTime();//returns time in milliseconds
+		
+		do{		
+			var current_time = getTime();
+		    	if(current_time-old_time>1000){
+		    		mysend(server_ip, PDU);
+		    		old_time = getTime();
+				} 
+				received_data = NetVarReceiveFrom(net_channel, &address1);	
+				if(received_data != null)
+					if(received_data[0] == ACK)
+						recv = true;			
+	    }while(!recv);
+	    
+	    outputln("Disconnected! \n");		
+	}
+}
+
+
+function OnInit(params){
+	/* initialize camera */
+	//CameraGetCurrent().SetPivotPoint(CAMERA_PIVOT);
+
+	/* initialize light */
+	Light0 = CVmLight();
+	Light0.SetPosition(PosL);
+	Light0.SetDiffuse(1, 1, 1);
+	Light0.Enable();
+	Light1 = CVmLight();
+	Light1.SetPosition(PosL1);
+	Light1.SetDiffuse(1, 1, 1);
+	Light1.Enable();
+	Light2 = CVmLight();
+	Light2.SetPosition(PosL2);
+	Light2.SetDiffuse(1, 1, 1);
+	Light2.Enable();
+	Light3 = CVmLight();
+	Light3.SetPosition(PosL3);
+	Light3.SetDiffuse(1, 1, 1);
+	Light3.Enable();
+	Light4 = CVmLight();
+	Light4.SetPosition(PosL4);
+	Light4.SetDiffuse(1, 1, 1);
+	Light4.Enable();	
+
+	// TODO: put your initialization code here	
+	my_level = level();
+	my_level.init("level1.txt");
+	level_obj_l = my_level.__Get("level_obj");
+	
+	for(var i=0 ; i < MAX_PLAYERS ; i++){
+		aplayer[i] = player();
+		online_player[i] = false;
+		is_enemy_updated[i] = false;
+		score[i] = 0;
+		score_ids[i] = "null";
+	}
+	
+	var CurDir = getcurrentdir();
+	SetCurrentDir(".");
+	
+	GLOBAL var TestDLL = CVmExternDLL( "../UtilityDll/Release/UtilityDll.dll" );
+	TestDLL.__AddFunction (C_PCHAR, "get_IPaddress");
+	TestDLL.__AddFunction(C_INT, "open_idprog");
+	Outputln("\n");
+	Outputln(TestDLL.open_idprog());
+	my_id = fileread("userid.txt");
+	outputln("id = " + my_id);
+	
+	my_ip = TestDLL.get_IPaddress();
+	Outputln("\n");
+	Outputln("IP:" + my_ip);
+	var ip_elem[4];
+	ip_elem = split(my_ip + "", ".");
+	if(int(val(ip_elem[0])) > 191) 
+		broadcast_address = ip_elem[0] + "." + ip_elem[1] + "." + ip_elem[2] + ".255";
+	else
+		broadcast_address = ip_elem[0] + ".255.255.255";
+	outputln("broadcast = " + broadcast_address);
+	
+	SetCurrentDir(CurDir);
+	
+	net_channel= NetCreateChannel(CLIENT_PORT, "0.0.0.0", VR_NO_BLOCKING);
+	
+	/* Send request in broadcast to find server ip */
+	var PDU = array(3);
+	PDU[0] = CONNECT_REQ_PDU;
+	PDU[1] = my_id;
+	PDU[2] = my_ip;
+	mysend(broadcast_address, PDU);
+	outputln("sended REQ_CONNECT");
+	
+	/* wait for the server response */
+	var address1 = "................";
+	var received_data = NetVarReceiveFrom(net_channel, &address1);
+	var recv = false;
+	
+	var old_time = getTime();//returns time in milliseconds
+	do{		
+		var current_time = getTime();
+    	if(current_time-old_time>1000){
+    		outputln("timeout: try send REQ_CONNECT again to:" + broadcast_address);
+    		mysend(broadcast_address, PDU);
+    		outputln("timeout: send REQ_CONNECT again");
+    		old_time = getTime();
+    		failed_attempts++;
+		} 
+		received_data = NetVarReceiveFrom(net_channel, &address1);
+		if(received_data != null){
+			if(received_data[0] == CONNECT_RESP_PDU){
+				outputln("received CONNECT_RESP");
+				var resp = received_data[1];
+				if(resp != ERR){
+					connected = true;
+					server_ip = received_data[2];
+					my_index = received_data[3];
+					aplayer[my_index].init(aplayer_color[my_index], received_data[4], level_obj_l);
+					online_player[my_index] = true;
+				}
+				else{
+					connected = false;
+					server_ip = received_data[2];
+					aplayer[my_index].init(aplayer_color[my_index], [2, 0, 2], level_obj_l);				
+				}
+				for(var i = 0 ; i < MAX_PLAYERS ; i++){
+					if(i != my_index)
+						aplayer[i].init(aplayer_color[i], [-1, -1, -1], level_obj_l);
+				}
+				recv = true;				
+			}			
+		}
+		if (failed_attempts >= 10){
+			outputln("Server not found. Exit...\n");
+			window.quit();
+			//Quit();
+		}						
+    } while (!recv);
+	
+	/* Set onTimer 10 times faster than on frame */
+	SetTimeStep(1);
+	
+	last_fs = getTime();
+}
+
+var old_updatetime = 0;
+
+function info(){	
+	ConsoleFont("Calibri",15);	
+	//Writing game info on the scene	
+	if(!connected){
+		ConsoleColor([1, 0, 0, 1]);
+		ConsoleText(0.5, 0.5, "Connected, but not in game!");		
+	}
+	else{
+		var gray_title = [0.3,0.3,0.3,1];
+		var background_rect = [1,1,1,0.5];
+		
+		ConsoleColor(background_rect);
+		ConsoleFilledRect(0,0.12,0.15,0.12);
+		ConsoleFont("Calibri",35);	
+		ConsoleColor([1, 0, 0, 1]);
+		var perc_life = (aplayer[my_index].__get("life") / MAX_LIFE) * 100;
+		ConsoleText(0.02, 0.05, str(perc_life) + "%");
+		ConsoleFont("Calibri",20);	
+		ConsoleColor(gray_title);
+		ConsoleText(0.03, 0.01, "Health");
+		ConsoleFont("Calibri",15);	
+		
+		ConsoleColor(background_rect);
+		ConsoleFilledRect(0.152,0.12,0.25,0.12);
+		if(aplayer[my_index].__get("railgun_equipped")){
+			ConsoleFont("Calibri",35);	
+			ConsoleColor([1, 0, 0, 1]);
+			ConsoleText(0.2, 0.05,str(aplayer[my_index].__get("railgun_bullets")) + "/" +str(MAX_RAILGUN_BULLETS));
+			ConsoleFont("Calibri",20);	
+			ConsoleColor(gray_title);
+			ConsoleText(0.18, 0.01, "Railgun bullets");
+		}
+			
+		else{
+			ConsoleFont("Calibri",35);	
+			ConsoleColor([1, 0, 0, 1]);
+			ConsoleText(0.2, 0.05,str(aplayer[my_index].__get("rocket_bullets")) + "/" +str(MAX_ROCKET_BULLETS));
+			ConsoleFont("Calibri",20);	
+			ConsoleColor(gray_title);
+			ConsoleText(0.18, 0.01, "Rocket bullets");	
+		}	
+		
+		ConsoleColor(background_rect);
+		ConsoleFilledRect(0.403,0.12,0.1,0.12);
+		ConsoleColor([0.5,0.5,0.5,1]);
+		ConsoleFilledRect(0.42,0.08,0.03,0.04);	
+		ConsoleFilledRect(0.46,0.08,0.03,0.04);				
+		ConsoleColor([0, 0, 1, 1]);
+		ConsoleFont("Calibri",10);	
+		ConsoleText(0.415, 0.09,"Recharge : R");
+		ConsoleFont("Calibri",15);	
+		ConsoleText(0.43, 0.05,"1");
+		ConsoleText(0.47, 0.05,"2");
+		ConsoleFont("Calibri",20);	
+		ConsoleColor(gray_title);
+		ConsoleText(0.42, 0.01, "Arms");	
+		
+		ConsoleColor(background_rect);
+		ConsoleFilledRect(0.505,0.12,0.294,0.12);
+		ConsoleColor([0.5,0.5,0.5,1]);
+		ConsoleFilledRect(0.506,0.119,0.145,0.077);
+		ConsoleFilledRect(0.653,0.119,0.143,0.077);
+		ConsoleColor([1,0,0,1]);
+		
+		ConsoleColor([0, 1, 0, 1]);
+		ConsoleText(0.02, 0.96, my_id);
+		
+		ConsoleColor(gray_title);
+		var y = 0.095;
+		for(var i = 0 ; i < MAX_PLAYERS ; i++){
+			if( i != my_index){
+				ConsoleColor([0, 0, 1, 1]);
+				ConsoleFont("Calibri",12);				
+				ConsoleText(0.508, y, " " + score_ids[i] + ": " + str(score[i]));
+				y-=0.025;
+			}
+			else{
+				ConsoleColor([0, 1, 0, 1]);
+				ConsoleFont("Calibri",30);	
+				ConsoleText(0.72, 0.072, str(score[i]));
+				ConsoleFont("Calibri",15);	
+				ConsoleText(0.675, 0.045, my_id);		
+			}
+		}
+		ConsoleColor(gray_title);
+		ConsoleFont("Calibri",20);	
+		ConsoleText(0.61, 0.01, "Score");
+		
+		ConsoleColor(background_rect);
+		ConsoleFilledRect(0.8,0.12,0.2,0.12);
+	}
+}
+
+function OnFrame(){
+	/* manage camera */
+
+	SceneBegin();
+	
+	//If the key h is pressed change to fullscreen mode
+	var current_time = getTime();
+	if(keyPressed("h") && ((current_time - last_fs) > 500)){
+		fs = !fs;		
+		window.Fullscreen(fs);
+		last_fs = current_time;
+	}
+	
+	//If the key esc is pressed close the game
+	if(keyPressed(VK_ESCAPE)){
+		onExit();
+		window.quit();		
+	}
+
+	
+	//Call player update and eventually send the new position to the server
+	aplayer[my_index].update(server_ip);	
+	if(connected){
+		//Periodic sending of my position
+		var current_updatetime = getTime();
+	    if(current_updatetime - old_updatetime > 50){
+	    	old_updatetime = current_updatetime;
+	    	
+			var PDU = array(8);
+			PDU[0] = POSITION_UPDATE_PDU;
+			PDU[1] = my_ip;
+			PDU[2] = my_index;
+			PDU[3] = aplayer[my_index].__get("position");
+			PDU[4] = aplayer[my_index].__get("move");
+			PDU[5] = aplayer[my_index].__get("current_frame");
+			PDU[6] = aplayer[my_index].__get("angle_xz");
+			PDU[7] = aplayer[my_index].__get("railgun_equipped");
+			mysend(server_ip, PDU);
+			
+			//Wait for the ack
+			var address1 = "................";
+			var received_data;
+			var recv = false;			
+			var old_time = getTime();
+			
+			do{		
+				var current_time = getTime();
+			    	if(current_time-old_time > 1000){
+			    		mysend(server_ip, PDU);
+			    		old_time = getTime();
+				} 
+				received_data = NetVarReceiveFrom(net_channel, &address1);	
+				if(received_data != null)
+					if(received_data[0] == ACK){
+						recv = true;
+						if(received_data[1] == ERR)
+							connected = false;
+					}								
+		    }while(!recv);
+	    }		
+	}
+	
+	my_level.draw();
+	
+	//If there is some enemy active I draw it
+	if(connected){
+		for(var i=0 ; i < MAX_PLAYERS ; i++){
+			if((online_player[i]) && (i != my_index)){
+				if (!is_enemy_updated[i])
+					aplayer[i].enemyInterpolate();
+				else
+					is_enemy_updated[i] = false;
+				aplayer[i].draw();
+			}
+		}		
+	}
+	
+	//Draw myself
+	CameraMove();
+	aplayer[my_index].fp_draw();
+	
+	ConsoleColor([1, 1, 1, 1]);
+	ConsoleText(0.495, 0.45, "+");		
+	info();
+	
+	SceneEnd();
+}
+
+
+
+function DownloadReady(RequestID){
+	// TODO
+}
+
+
+
+function OnTimer(){
+	var address1 = "................";
+	var received_data = NetVarReceiveFrom(net_channel,&address1);
+	
+	if((received_data != NULL) && connected){		
+		//Received a enemy position PDU
+		if(received_data[0] == ENEMY_POSITION_PDU){
+			var enemy_index = received_data[1];
+			var enemy_position = received_data[2];
+			var enemy_move = received_data[3];
+			var enemy_frame = received_data[4];
+			var enemy_angle = received_data[5];
+			var enemy_gun = received_data[6];
+			
+			is_enemy_updated[enemy_index] = true;
+			
+			online_player[enemy_index] = true;
+			aplayer[enemy_index].enemyUpdate(enemy_position, enemy_move, enemy_frame, enemy_angle, enemy_gun);
+		}
+		
+		//Received an enemy disconnection PDU
+		if(received_data[0] == ENEMY_DISCONNECTION_PDU){
+			var enemy_index = received_data[1];
+			online_player[enemy_index] = false;
+			outputln("enemy " + str(enemy_index) + " disconnected");
+		}
+		
+		//Received a ping from the server
+		if(received_data[0] == PING){
+			var PDU = array(2);
+			PDU[0] = PING;
+			PDU[1] = my_index;
+			mysend(server_ip, PDU);			
+		}
+		
+		//Received a position bullet PDU
+		if(received_data[0] == POSITION_BULLET_PDU){
+			aplayer[my_index].insertBullet(received_data[1], received_data[2], received_data[3], received_data[4], received_data[5], received_data[6]);			
+		}
+		
+		//Received a delete bullet pdu
+		if(received_data[0] == DELETE_BULLET_PDU){
+			aplayer[my_index].deleteBullet(received_data[1], received_data[2]);
+//			Outputln("Il server ha mandato la DELETE");
+//			trace(received_data);
+		}
+		
+		//Received a score PDU
+		if(received_data[0] == SCORE_PDU){
+			score = received_data[1];
+			score_ids = received_data[2];
+		}
+		
+		//Server closed
+		if(received_data[0] == SERVER_CLOSED){
+			outputln("Server closed. Exit...\n");
+			window.quit();
+		}		
+	}	
+}
+
+function OnEvent(eventID, wparam, lparam){
+	// TODO: put your events handling code here
+}
+
+function OnError(){
+	// TODO: put your errors handling code here
+}
+
+
+
+// Camera manager (using mouse)
+function CameraMove(){  
+//  CameraMoveMouse_MBL_LC();
+	var temp_pos = aplayer[my_index].__get("position");
+	var temp_angle = aplayer[my_index].__get("angle_xz");
+	var sin_a = sin(temp_angle);
+	var cos_a = cos(temp_angle);
+	var cam_z = temp_pos[0] + sin_a * CAMERA_OFF_Z;
+	var cam_y = temp_pos[1] + CAMERA_OFF_Y;
+	var cam_x = temp_pos[2] + cos_a * CAMERA_OFF_X;
+	CameraGetCurrent().SetPosition(cam_z, cam_y, cam_x);
+	CameraGetCurrent().SetDirection([sin_a, 0, cos_a]);
+}
+
+
+
+function DrawGrid(col, size){
+	/* let's not mess up current OpenGL status */
+	glPushAttrib(GL_LIGHTING_BIT | GL_LINE_BIT | GL_CURRENT_BIT);
+	
+	glLineWidth(1);
+	glDisable(GL_LIGHTING);
+	glColor(col);
+	var max = size / 2.0;
+	var min = -max;	
+	var step = size / 10.0;
+	
+	glBegin(GL_LINES);
+		for (var i = min; i <= max; i += step)
+		{
+			glVertex(i, 0, max);
+			glVertex(i, 0, min);
+			
+			glVertex(max, 0, i);
+			glVertex(min, 0, i);
+		}
+	glEnd();
+	
+	/* polite restoration of previous OpenGL status */
+	glPopAttrib();
+}
