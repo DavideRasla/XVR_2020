@@ -1,0 +1,131 @@
+
+
+class level
+{
+	var wall_mesh;
+	var obstacle_mesh;
+	var wall_obj_array;
+	var just_floor_obj_array;
+	var just_wall_obj_array;
+	var floor_mesh;
+	var wall_material;
+	var obstacle_material;
+	var wall_texture;
+	var floor_material;
+	var floor_texture;
+	var obstacle_texture;
+	var level_matrix;
+	var num_rows;
+	var num_columns; 
+	var obstacles_obj_array;
+	var sky_mesh;
+	init(level_textfile);
+	draw();
+	get_Random_Floor_Pos();	
+};
+
+function Level::get_Random_Floor_Pos()
+{
+	var i, j;
+	do {
+		i = Rand(num_rows-1);
+		j = Rand(num_columns-1);
+	} while (level_matrix[i][j] != 0);
+	return [j+0.5, 0, i+0.5];
+}
+ function level::init(level_textfile)
+{
+	wall_texture = CVmTexture("wall.jpg");
+	
+	wall_material = CVmMaterial();
+	wall_material.Shininess = 100;
+	wall_material.SetTexture(wall_texture);
+	wall_material.ChangeTextureParams(VR_V_TILING, 3);
+	wall_material.ChangeTextureParams(VR_INTENSITY , 300); 
+	
+	obstacle_texture = CVmTexture("obstacles.jpg");
+	
+	obstacle_material = CVmMaterial();
+	obstacle_material.Shininess = 100;
+	obstacle_material.SetTexture(obstacle_texture);
+	obstacle_material.ChangeTextureParams(VR_V_TILING, 3);
+	obstacle_material.ChangeTextureParams(VR_INTENSITY , 300); 
+	
+	wall_obj_array = array(0);
+	just_floor_obj_array = array(0);
+	just_wall_obj_array = array(0);
+	obstacles_obj_array = array(0);
+	var f = LoadFile(level_textfile);
+	trace(f);
+	num_rows = len(f);
+	num_columns = len(f[0]);
+	level_matrix = array(10*num_rows);
+	trace(num_rows,num_columns);
+	for(var i=0; i< 10*num_rows; i++)
+	{
+		level_matrix[i] = array(10*num_columns);
+		for(var j=0; j< 10*num_columns; j++)
+		{
+			level_matrix[i][j] = 0;
+		}
+		
+	}
+	var t;
+	for(var i=0; i< num_rows; i++)
+	{
+		
+		for(var j=0; j< num_columns; j++)
+		{	var height = val(f[i][j]);
+			if (height == 6)
+			{	var height = val(f[i][j]);
+				level_matrix[i][j] = height;
+				wall_mesh = CVmNewMesh(VRP_BOX);
+				wall_mesh.SetMaterial(wall_material);
+				wall_mesh.Scale(1,height,1);
+				t = CVmObj(wall_mesh);
+				t.SetPosition(j,0,i);		
+				aadd(wall_obj_array,t);			
+			}else if (height != 6 && f[i][j] != " ")
+			{	var height = val(f[i][j]);
+				level_matrix[i][j] = height;
+				obstacle_mesh = CVmNewMesh(VRP_BOX);
+				obstacle_mesh.SetMaterial(obstacle_material);
+				obstacle_mesh.Scale(1,height,1);
+				t = CVmObj(obstacle_mesh);
+				t.SetPosition(j,0,i);
+				aadd(obstacles_obj_array,t);
+				
+			}else if (f[i][j] == " " || f[i][j] == "") {//floor
+				aadd(just_floor_obj_array, t);
+				level_matrix[i][j] = 0;
+			}
+		}
+	}	
+	
+	floor_material = CVmMaterial();
+	floor_texture  = CVMtexture("floor.jpg");
+	floor_material.SetTexture(floor_texture);
+	floor_mesh = CVmNewMesh(VRP_BOX);
+	floor_mesh.scale(num_columns,1,num_rows);
+	floor_mesh.translate(0,-1,0);
+	floor_mesh.SetMaterial(floor_material);
+	floor_mesh.ModulateMaterials(127, 166, 226, 1);	
+	sky_mesh = CVmNewMesh("sky.aam");
+	sky_mesh.translate(num_rows/2.0, 0, num_columns/2.0);
+}
+
+
+ function level::draw()
+{
+	foreach (var t in wall_obj_array)
+		t.Draw();
+	foreach (var t in obstacles_obj_array)
+		t.Draw();
+	
+	floor_mesh.draw();
+	sky_mesh.Draw();
+}
+
+
+
+

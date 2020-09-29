@@ -1,0 +1,700 @@
+#ifndef PLAYER_S3D_
+#define PLAYER_S3D_
+
+#include "weapons.s3d"
+#include "Config.s3d"
+
+
+class player
+{
+	var my_id;
+	var mynetwork;
+	
+	var Moved;
+	var lower_mesh;
+	var upper_mesh;
+	var lower_obj;
+	var upper_obj;
+	var obj;
+	var obj_weapon;
+	var my_weapon;
+	var life;
+	//MOVING
+	var position;
+	var angle;
+	var direction;
+	var step;
+	var frame_step;
+	var current_frame;
+	var run;
+	var KILLER_ON;
+	var KNIFE_ON;
+	var GUN_ON;
+	var Level;
+	var killer;
+	var Level_OBJ_MAP;
+	var Player_Box_Coll_MESH;
+	var Player_Box_Coll_OBJ;
+	var is_Striding;
+	var No_Stride_pos;
+	//BULLET
+	var my_bullet;
+	var color;
+	var shoot_fx;
+	var step_fx;
+	var last_shot;
+	var sf1;
+	var has_shot;
+	var is_jumping;
+	var is_falling;
+	var v_y;
+	//VIEW 
+	var view_type; // 1 means first, 3 means third
+	var Block_First_View;
+	var pos_camera;
+	var cam_z;
+	var cam_y;
+	var old_weapon; // 0 for type 0, 1 for type 1 and so on
+	var cam_x;
+	var correct_cameraX;
+	var correct_cameraZ;
+	var kills;
+	var deaths;
+	var counter_bullet_sent;
+	var God_Mode;
+	var platform_pos;
+	var last_God;
+/***** METHODS *****/
+	init(id,pos, col, lvl,net);
+	draw();
+	setposition(pos);
+	setrotation(angle);
+	get_Position();
+	get_Angle();
+	get_Weapon();
+	set_life(s);
+	update();
+	changeWeapon(num);
+	first_View();
+	is_Colliding();
+	is_Colliding_With_Obstacles();
+	third_View();
+	Stride();
+	NotifyHit(id, i);
+	set_killer(id);
+	get_killer();
+	addDeaths();
+	incrementKills();
+	incrementDeaths();
+	notifyDeath();
+	respawn();
+	setPlatform_Pos(Plat_pos);
+};
+
+
+
+function player::set_life(s){
+	life -= s;
+}
+
+function player::is_Colliding(){
+Player_Box_Coll_OBJ.draw();
+var Obstacles_OBJ_Array = Level.__get("obstacles_obj_array");
+	foreach (var t in Level_OBJ_MAP)
+		if (Player_Box_Coll_OBJ.isCollidingBBox(t))
+			return true;	
+			
+	foreach (var t in Obstacles_OBJ_Array)
+		if (Player_Box_Coll_OBJ.isCollidingBBox(t))
+			return true;			
+	return false;
+}
+
+function player::is_Colliding_With_Obstacles(){
+Player_Box_Coll_OBJ.draw();
+var Obstacles_OBJ_Array = Level.__get("obstacles_obj_array");
+	foreach (var t in Obstacles_OBJ_Array)
+		if (Player_Box_Coll_OBJ.isCollidingBBox(t))
+			return true;			
+	return false;
+}
+
+function player::setposition(pos)
+{
+	position = pos;
+	obj.setposition(position);
+	if(KILLER_ON == 1){
+		var temp_pos =  position + [0.46*(-direction.z), 0, 0.46*(direction.x)];
+			temp_pos[0] = temp_pos[0] + direction[0] * + 0.5 ;
+			temp_pos[2] = temp_pos[2] + direction[2] * + 0.5 ;
+		obj_weapon.setposition(temp_pos);	
+	}
+	if(KNIFE_ON == 1){
+		var temp_pos =  position + [0.46*(-direction.z), 0.76, 0.46*(direction.x)];
+			temp_pos[0] = temp_pos[0] + direction[0] * + 1.3 ;
+			temp_pos[2] = temp_pos[2] + direction[2] * + 1.3 ;
+		obj_weapon.setposition(temp_pos);
+		
+	}
+	if(GUN_ON == 1){
+		var temp_pos =  position + [0.46*(-direction.z), 0.76, 0.46*(direction.x)];
+			temp_pos[0] = temp_pos[0] + direction[0] * + 1.3 ;
+			temp_pos[2] = temp_pos[2] + direction[2] * + 1.3 ;
+		obj_weapon.setposition(temp_pos);	
+	}
+	
+
+	Player_Box_Coll_OBJ.setPosition(pos);
+}
+function player::get_Position()
+{
+	return position;;
+}
+
+function player::get_Weapon()
+{
+	return my_weapon;
+}
+
+
+
+
+function player::get_Angle()
+{
+	return angle;
+}
+function player::setrotation(angle)
+{
+	obj.setrotation(angle*180.0/PI,0,1,0);
+	if(KILLER_ON == 1){
+	obj_weapon.setrotation(angle*180.0/PI,0,1,0);
+
+	}
+	if(KNIFE_ON == 1){
+	obj_weapon.setrotation(angle*180.0/PI,0,1,0);
+	obj_weapon.rotate(90,0,0,1);
+	}
+	if(GUN_ON == 1){
+	obj_weapon.setrotation(angle*180.0/PI,0,1,0);
+	obj_weapon.rotate(90,0,1,0);
+	}
+
+	
+}
+function player::draw()
+{
+	obj.draw(VR_FRAMENUMBER,current_frame);
+	if(KILLER_ON == 1)
+		obj_weapon.draw();
+	if(KNIFE_ON == 1)
+		obj_weapon.draw();
+	if(GUN_ON == 1)
+		obj_weapon.draw();
+	
+}
+
+
+function player::init(id, pos, col, lvl, net)
+{
+	counter_bullet_sent = 0;
+	my_id = id;
+	Outputln("Init player with ID ", my_id);
+	mynetwork = net;
+	direction = [0,0,1];
+	position = pos;
+	is_Striding = 0;
+	color = col;
+	has_shot = 0;
+	killer = 0;
+	kills = 0;
+	deaths = 0;
+	last_shot = 0;
+	God_Mode = 0;
+	last_God = 0;
+	life = PLAYER_LIFE;
+	lower_mesh = CVmNewMesh("swat_lower.aam");
+	//Outputln(lower_mesh.getFrames());
+	sf1 = lower_mesh.normalize(1);
+	upper_mesh = CVmNewMesh("swat_upper.aam");
+	upper_mesh.scale(sf1);
+	Level = lvl;
+	Level_OBJ_MAP = Level.__get("wall_obj_array");
+	Player_Box_Coll_MESH = CVmNewMesh(VRP_CYLINDER);
+	Player_Box_Coll_MESH.scale(SCALE_BOX_COLLISION);
+	var Invisible_texture = CVmMaterial();
+	Invisible_texture.transparency = 0.0; 
+	Player_Box_Coll_MESH.setMaterial(Invisible_texture);
+	Player_Box_Coll_OBJ = CVmObj(Player_Box_Coll_MESH);
+	KILLER_ON = 0;
+	KNIFE_ON = 0;
+	GUN_ON = 0;
+	is_jumping = false;
+	is_falling = false;
+	v_y = 0;
+	Block_First_View = 0;
+	lower_obj = CVmObj(lower_mesh);
+	upper_obj = CVmObj(upper_mesh);
+	
+	obj = CVmObj();
+	obj_weapon = CVmObj();
+	obj.addchild(upper_obj);
+	obj.addchild(lower_obj);
+	my_weapon = Weapon();
+	old_weapon = Array(6);
+	for(var i = 0; i < 6; i++)
+		old_weapon[i] = null;
+	obj.addchild(my_weapon.init(sf1, WEAPON_TYPE_RAILGUN, position, direction,Level,counter_bullet_sent, mynetwork));
+	obj.ModulateMaterials(color);
+	obj_weapon.ModulateMaterials(color);
+	angle = 0;
+	
+	step = 0.1;
+	frame_step = 1.0;
+	current_frame = SWAT_START_WALK;
+	run = 1;
+	view_type = 1;
+	correct_cameraX = 0;
+	correct_cameraZ = 0;
+	
+
+	shoot_fx = CVmVRAWAV("shoot.wav");
+	step_fx  = CVmVRAWAV("step.wav");
+}
+function player::changeWeapon(num)
+{
+
+	var old_type = my_weapon.get_Type();
+	old_weapon[old_type] = my_weapon.get_State();
+	
+	obj.RemoveChild(my_weapon.get_Obj());
+	
+	if(num == WEAPON_TYPE_ROCKET){
+		obj_weapon = my_weapon.init(sf1, WEAPON_TYPE_RAILGUN, position, direction,Level,counter_bullet_sent, mynetwork );
+		obj.addchild(obj_weapon);		
+	}
+	else if (num == WEAPON_TYPE_RAILGUN){
+		obj_weapon = my_weapon.init(sf1, WEAPON_TYPE_ROCKET, position, direction,Level,counter_bullet_sent,  mynetwork);
+		obj.addchild(obj_weapon);
+	}else if(num == WEAPON_TYPE_KILLER){
+		obj_weapon = my_weapon.init(sf1, WEAPON_TYPE_KILLER, position, direction,Level,counter_bullet_sent,  mynetwork);
+		obj.addchild(obj_weapon);	
+	}else if(num == WEAPON_TYPE_KNIFE){
+		obj_weapon = my_weapon.init(sf1, WEAPON_TYPE_KNIFE, position, direction,Level,counter_bullet_sent,  mynetwork);
+		obj_weapon.rotate(90,0,0,1);
+		obj.addchild(obj_weapon);	
+		}
+	else if(num == WEAPON_TYPE_GUN){
+		obj_weapon = my_weapon.init(sf1, WEAPON_TYPE_GUN, position, direction,Level,counter_bullet_sent,  mynetwork);
+		obj_weapon.rotate(90,0,0,1);
+		obj.addchild(obj_weapon);	
+	}
+
+	var actual_weapon = my_weapon.get_Type();
+	if(old_weapon[actual_weapon]  != null){
+		my_weapon.set_State(old_weapon[actual_weapon]);
+		}
+	
+}
+
+
+function dot_Scalar(a, b){
+	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+function player::Stride(){
+
+	var Contact_P = 0;
+	var Contact_Normal = [0, 0, 0];
+	var triangle_id = 0;
+	Outputln("Striding");
+	var temp = CVmObj();
+	foreach (var t in Level_OBJ_MAP){
+		if (Player_Box_Coll_OBJ.isCollidingBBox(t))
+			temp = t;		
+	 }
+
+	
+	
+	var level_matrix = Level.__get("level_matrix");
+	var i = int(position.z);
+	var j = int(position.x);
+	var old_height = level_matrix[i][j];
+	var old_dir = direction;
+	var old_pos = position;
+	if (old_height == 0){
+		No_Stride_pos = position;
+	}
+	if(obj.isColliding(obj.GetPosition(),temp.GetPosition(),&Contact_P,&Contact_Normal,&triangle_id, null, true ) == true ){
+		Outputln("Dot_Scalar", dot_Scalar(direction, Contact_Normal));	
+		//Outputln(direction[0]," ",  direction[1]," ",   direction[2]," ",   Contact_Normal[0]," ",   Contact_Normal[1]," ",   Contact_Normal[2]);
+		direction = Contact_Normal;
+		direction[1] = 0;
+		var temp_position = position;
+		temp_position = temp_position + (direction*step*run);
+		i = int(temp_position.z);
+		j = int(temp_position.x);
+		var new_height = level_matrix[i][j];
+
+		if (new_height > 0){
+			direction = old_dir;
+			position = No_Stride_pos;	
+		}else{
+			view_type = 1;
+			is_Striding = 1;
+		}
+	}else{
+		return 0;
+	}
+
+			
+return  dot_Scalar(direction, Contact_Normal);
+}
+
+function player::update()
+{	
+	Moved = 0;
+	var oldposition = position;
+	my_weapon.update(position, direction);
+	if (keypressed(VK_SHIFT))
+		run = 2;
+	else
+		run = 1;
+	
+	if (keypressed(VK_RIGHT) || keypressed("d"))	{
+		Moved = 1;
+		angle -= 0.01;
+		}
+	else if (keypressed(VK_LEFT) || keypressed("a")){
+		Moved = 1;
+		angle += 0.01;
+	}
+	
+
+
+	direction = [sin(angle), 0, cos(angle)];
+
+	setrotation(angle);
+	setposition(position);	
+
+
+	//todo: qui devo controllare se il player è ancora dentro la mappa
+	
+	var i = int(position.z);
+	var j = int(position.x);
+	var level_matrix = Level.__get("level_matrix");
+	var inside = level_matrix[i][j];
+
+
+ 	if( (keypressed(VK_UP) || keypressed("w")) && is_Colliding_With_Obstacles() && position.y > 0){
+		Moved = 1;
+		var old_height = level_matrix[i][j];
+		position += (direction*step*run);
+		i = int(position.z);
+		j = int(position.x);
+		var new_height = level_matrix[i][j];
+		
+		setposition(position);	
+		current_frame += frame_step;
+	
+		if(is_Colliding_With_Obstacles() && new_height > old_height){
+			Outputln("Colling with obstacles: ", is_Colliding_With_Obstacles());
+			position = oldposition;
+			setposition(position);	
+			}
+	} else if ((keypressed(VK_UP) || keypressed("w")) && is_Colliding()  ){
+		Moved = 1;
+		Outputln("Colling with walls: ", is_Colliding());
+		position = oldposition;
+		setposition(position);	
+		current_frame += frame_step;
+		//No_Stride_pos = oldposition;
+		if(Stride() != 0){
+			/*
+			 * if the dot_scalar between the direction and the normal is not 0
+			 */
+			position += (direction*step*run);
+			setposition(position);	
+			}
+		
+		if (current_frame > SWAT_END_WALK)
+		{
+			step_fx.play();
+			current_frame = SWAT_START_WALK;			
+		}
+		
+	}else if(keypressed(VK_UP) || keypressed("w")){
+		Moved = 1;
+		position += (direction*step*run);
+		setposition(position);	
+		current_frame += frame_step;
+		if (current_frame > SWAT_END_WALK)
+		{
+			step_fx.play();
+			current_frame = SWAT_START_WALK;			
+		}
+	} else if( (keypressed(VK_DOWN) || keypressed("s")) && is_Colliding_With_Obstacles() && position.y > 0){
+		Moved = 1;
+		var old_height = level_matrix[i][j];
+		position -= (direction*step*run);
+		i = int(position.z);
+		j = int(position.x);
+		var new_height = level_matrix[i][j];
+		setposition(position);	
+		current_frame -= frame_step;
+	
+		if(is_Colliding_With_Obstacles() && new_height > old_height){
+			position = oldposition;
+			setposition(position);	
+			}
+	} else if ((keypressed(VK_DOWN) || keypressed("s")) && is_Colliding()  ){
+		Moved = 1;
+		position = oldposition;
+		setposition(position);	
+		current_frame -= frame_step;
+		if(Stride() != 0){
+			/*
+			 * if the dot_scalar between the direction and the normal is not 0
+			 */
+			position -= (direction*step*run);
+			current_frame -= frame_step;
+			setposition(position);	
+			}
+		
+		if (current_frame < SWAT_START_WALK)
+			current_frame = SWAT_START_WALK;
+		
+	}else if (keypressed(VK_DOWN) || keypressed("s"))
+	{	Moved = 1;
+		position -= (direction*step*run);
+		setposition(position);	
+		if(is_Colliding()){
+			position = oldposition;
+			setposition(position);	
+			}
+		current_frame -= frame_step;
+		if (current_frame < SWAT_START_WALK)
+			current_frame = SWAT_START_WALK;
+			
+	}else if (Block_First_View == 0){
+		is_Striding = 0;
+		view_type = 3;
+	}
+	if (keypressed(VK_SPACE) && !is_jumping) {
+		Moved = 1;
+		is_jumping = true;
+		v_y = 0;
+		//jump_fx.play();
+	}
+	
+	if(is_jumping == true ){
+		Moved = 1;
+		v_y = 0.05;
+		
+		if(position.y < SWAT_JUMP_H && is_falling == false){
+			position.y += v_y;
+			
+		}else if(keypressed(VK_SPACE) == true && position.y < SWAT_JUMP_H && is_falling == true && is_Colliding_With_Obstacles() == true){
+			position.y += v_y;
+			is_falling = false;
+			
+		}else if(is_Colliding_With_Obstacles() == false){
+			is_falling = true;
+			position.y -= v_y;
+		}
+		if(position.y <= 0){
+			position.y = 0;
+			is_jumping = false;
+			is_falling  = false;
+		}
+	}
+
+	if (keypressed("1"))
+	{	KILLER_ON = 0;
+		KNIFE_ON = 0;
+		GUN_ON = 0;
+		changeWeapon(0);
+	}
+	if (keypressed("2"))
+	{	KILLER_ON = 0;
+		KNIFE_ON = 0;
+		GUN_ON = 0;
+		changeWeapon(1);
+	}
+	if (keypressed("3"))
+	{	KILLER_ON = 1;
+		KNIFE_ON = 0;
+		GUN_ON = 0;
+		changeWeapon(2);
+	}
+	if (keypressed("4"))
+	{	KILLER_ON = 0;
+		KNIFE_ON = 1;
+		GUN_ON = 0;
+		changeWeapon(3);
+	}
+	if (keypressed("5"))
+	{	KILLER_ON = 0;
+		KNIFE_ON = 0;
+		GUN_ON = 1;
+		changeWeapon(4);
+	}
+	
+	if (keypressed("e") && ((GetTime() - last_shot) > 500 ))
+	{	has_shot = 1;
+		last_shot = GetTime();
+		if (my_weapon.get_Type() == WEAPON_TYPE_ROCKET) {
+			counter_bullet_sent = my_weapon.shoot(ROCKET_NUM_TO_SHOOT, angle, my_id, counter_bullet_sent);
+		}else if (my_weapon.get_Type() == WEAPON_TYPE_KNIFE) {
+			counter_bullet_sent = my_weapon.shoot(KNIFE_NUM_TO_SHOOT, angle, my_id, counter_bullet_sent);
+		}else if (my_weapon.get_Type() == WEAPON_TYPE_KILLER) {
+			counter_bullet_sent = my_weapon.shoot(KILLER_NUM_TO_SHOOT, angle, my_id, counter_bullet_sent);}
+		else if (my_weapon.get_Type() == WEAPON_TYPE_GUN) {
+			counter_bullet_sent = my_weapon.shoot(GUN_NUM_TO_SHOOT, angle, my_id, counter_bullet_sent);}
+		else{
+			counter_bullet_sent = my_weapon.shoot(RAILGUN_NUM_TO_SHOOT, angle, my_id, counter_bullet_sent);	
+		}
+	}
+	if (keypressed("f"))
+	{	Block_First_View = 1;
+		view_type = 1;
+		first_View();
+	}
+	if(keypressed("t") ){
+		Block_First_View = 0;
+		view_type = 3;
+		third_View();
+	}
+	if(view_type == 1){
+		first_View();
+	}else if(Block_First_View == 0){
+		third_View();
+	}
+	
+	if(keypressed("r")){
+		my_weapon.reload_Weapon();
+	}
+
+	if (Moved == 1) {
+		var pos_pdu = mynetwork.SendPlayerPosPDU(position, angle, 1, current_frame);
+		mynetwork.sendPDU(pos_pdu);
+		
+	}
+ 	if (counter_bullet_sent >= 4000){
+ 		counter_bullet_sent = 0;
+ 	}
+	my_weapon.drawObjects();
+	
+	/*God_Mode_Code */
+	
+	
+			
+	if( God_Mode == 0 && modulus(position.x_z - platform_pos.x_z) < 1){
+		God_Mode = 1;
+		last_God = GetTime();
+		my_weapon.Full_Recharge();
+	}
+	
+	if( (GetTime() - last_God) > 10000){
+		God_Mode = 0;
+	}
+}
+
+
+
+
+
+
+function player::first_View(){
+	
+	
+	var sin_a = sin(angle);
+	var cos_a = cos(angle);
+	var cam_z = position[0] + sin_a * CAMERA_OFF_Z;
+	var cam_y = position[1] + CAMERA_OFF_Y;
+	var cam_x = position[2] + cos_a * CAMERA_OFF_X;
+	CameraGetCurrent().SetPosition(cam_z , cam_y+ 0.3, cam_x );
+	
+//	CameraGetCurrent().SetPosition(position.x -  sin(-angle) , position[1] + 1.5, position.z+cos(angle) );
+	CameraGetCurrent().SetDirection([sin_a, 0, cos_a]);
+}
+
+
+function player::third_View(){
+	
+	
+	var sin_a = sin(angle);
+	var cos_a = cos(angle);
+
+
+	var target = position+(500*direction*step*run);
+
+	pos_camera = [position.x+sin(-angle)*1.8, 
+			position.y+1.8, position.z-cos(angle)*1.8];
+	CameraGetCurrent().SetPosition(pos_camera);
+	CameraGetCurrent().SetTarget(target);
+	CameraGetCurrent().Free();
+
+	//Show_Debug2(position, target);
+	
+}
+
+function player::NotifyHit(id, i){
+	var pdu = mynetwork.Create_HIT_PDU(id, i);
+	mynetwork.sendPDU(pdu);
+}
+
+function player::set_killer(id){
+	killer = id;
+}
+
+function player::get_killer(){
+	return killer;
+}
+function player::addDeaths(){
+
+}
+
+function player::notifyDeath(){
+	var pdu = mynetwork.Create_Kill_PDU(killer);
+	mynetwork.sendPDU(pdu);
+}
+
+function Player::respawn()
+{
+	var respawn_pos = level.get_Random_Floor_Pos();
+	
+	
+	position = respawn_pos;
+
+
+	direction = [0,0,1];
+	is_Striding = 0;
+	has_shot = 0;
+	killer = 0;
+	last_shot = 0;
+	life = PLAYER_LIFE;
+	KILLER_ON = 0;
+	KNIFE_ON = 0;
+	GUN_ON = 0;
+	is_jumping = false;
+	is_falling = false;
+	v_y = 0;
+	
+	var pos_pdu = mynetwork.SendPlayerPosPDU(position, angle, 1, current_frame);
+	mynetwork.sendPDU(pos_pdu);
+}
+
+function Player::incrementKills()
+{
+	kills +=1;
+}
+function Player::incrementDeaths()
+{
+	deaths +=1;
+}
+function Player::setPlatform_Pos(Plat_pos)
+{
+	platform_pos = Plat_pos;
+}
+#endif
+

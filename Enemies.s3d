@@ -1,0 +1,236 @@
+#ifndef enemy_S3D_
+#define enemy_S3D_
+#include "player.s3d"
+class enemy{
+	var id;
+	var active;
+	var alive;
+	var pos;
+	var angle;
+	var score;
+	var bullets;
+	var last_uid;
+	var kills;
+	var deaths;
+	var KILLER_ON;
+	var KNIFE_ON;
+	var GUN_ON;
+	// graphics
+	var lower_mesh;
+	var upper_mesh;
+	var weap_mesh;
+	var lower_obj;
+	var upper_obj;
+	var weap_obj;
+	var obj;
+	var anim_frame;
+	var enemy_weapon;
+	var current_type_weapon;
+	// collision detection
+	var my_player;
+	var level;
+	var sf;
+	// connection
+	var network;
+	
+	
+	init(enemy_id, act, p, a, sc, pl, lvl, net);
+	draw();
+	update();
+	changePosition(new_pos, new_angle, visible, frame);
+	setRotation(angle);
+	setBullet(pdu);
+	IncrementKills();
+	incrementDeaths();
+	get_ID();
+	changeWeapon(num);
+};
+
+
+
+function enemy::init(enemy_id, act, p, a, s, pl, lvl, net)
+{
+	id = enemy_id;
+	enemy_weapon = Weapon();
+	current_type_weapon = WEAPON_TYPE_RAILGUN;
+	active = act;
+	alive = true;
+	pos = p;
+	angle = a;
+	score = s;
+	my_player = pl; 
+	level = lvl;
+	network = net;
+	kills = 0;
+	deaths = 0;
+	KILLER_ON = 0;
+	KNIFE_ON = 0;
+	GUN_ON = 0;
+	anim_frame = 1;
+	var Max_Bullet_player = 1500;
+	bullets = array(Max_Bullet_player);
+	last_uid = array(Max_Bullet_player);
+	for (var i=0; i<Max_Bullet_player; i++) {
+		bullets[i] = null;
+		last_uid[i] = -1;	
+	}
+		
+	lower_mesh = CVmNewMesh("swat_lower.aam");
+	sf = lower_mesh.normalize(1);
+	upper_mesh = CVmNewMesh("swat_upper.aam");
+	upper_mesh.scale(sf);
+	weap_mesh = CVmNewMesh("rocketl.AAM");
+	weap_mesh.scale(sf);
+	
+	lower_obj = CVmObj(lower_mesh);
+	upper_obj = CVmObj(upper_mesh);
+	var direction = [sin(angle), 0, cos(angle)];
+	weap_obj = enemy_weapon.init(sf, WEAPON_TYPE_ROCKET, pos, direction,level,0, 0, network);
+	
+	obj = CVmObj();
+	obj.addchild(upper_obj);
+	obj.addchild(lower_obj);
+	obj.addchild(weap_obj);
+
+	
+		
+		
+	
+	obj.SetPosition(pos);
+	obj.SetRotation(angle);
+}
+
+function enemy::get_ID(){
+	return id;
+}
+
+function enemy::changeWeapon(num)
+{
+	
+	var direction = [sin(angle), 0, cos(angle)];
+	obj.RemoveChild(enemy_weapon.get_Obj());
+	
+	if(num == WEAPON_TYPE_ROCKET){
+		weap_obj = enemy_weapon.init(sf, WEAPON_TYPE_RAILGUN, pos, direction,level,0, network );
+		obj.addchild(weap_obj);		
+	}
+	else if (num == WEAPON_TYPE_RAILGUN){
+		weap_obj = enemy_weapon.init(sf, WEAPON_TYPE_ROCKET, pos, direction,level,0,  network);
+		obj.addchild(weap_obj);
+	}else if(num == WEAPON_TYPE_KILLER){
+		KILLER_ON = 1;
+		KNIFE_ON = 0;
+		GUN_ON = 0;
+		weap_obj = enemy_weapon.init(sf, WEAPON_TYPE_KILLER, pos, direction,level,0,  network);
+		obj.addchild(weap_obj);	
+	}else if(num == WEAPON_TYPE_KNIFE){
+		KILLER_ON = 0;
+		KNIFE_ON = 1;
+		GUN_ON = 0;
+		weap_obj = enemy_weapon.init(sf, WEAPON_TYPE_KNIFE, pos, direction,level,0,  network);
+		weap_obj.rotate(90,0,0,1);
+		obj.addchild(weap_obj);	
+		}
+	else if(num == WEAPON_TYPE_GUN){
+		KILLER_ON = 0;
+		KNIFE_ON = 0;
+		GUN_ON = 1;
+		weap_obj = enemy_weapon.init(sf, WEAPON_TYPE_GUN, pos, direction,level,0, network);
+		weap_obj.rotate(90,0,0,1);
+		obj.addchild(weap_obj);	
+	}
+}
+
+function enemy::changePosition(new_pos, new_angle, visible, frame)
+{
+	pos = new_pos;
+	angle = new_angle;
+	anim_frame = frame;
+	if (visible == 0)
+		alive = false;
+	else
+		alive = true;
+	obj.setRotation(angle*180.0/PI, 0, 1, 0);
+	obj.SetPosition(pos);
+}
+function enemy::draw()
+{
+	if (alive) {
+		obj.Draw(VR_FRAMENUMBER, anim_frame);
+		
+		if(KILLER_ON == 1)
+			enemy_weapon.get_Obj().draw();
+		if(KNIFE_ON == 1)
+			weap_obj.draw();
+		if(GUN_ON == 1)
+			weap_obj.draw();
+		
+		for (var i=0; i<1500; i++) {
+			if (bullets[i] != null) {
+				bullets[i].draw();
+			}
+		
+		}
+	
+	}
+
+}
+
+
+function Enemy::update()
+{
+		for (var i=0; i<1500; i++) {
+			if (bullets[i] != null) {
+				var Hit = bullets[i].update(my_player.__get("my_id"), my_player.__get("position"));
+					
+				if(Hit == 2){//hitted my player
+					var damage = bullets[i].getDamage();
+					if( my_player.__get("God_Mode") == 0){
+						my_player.set_life(damage);
+						}
+					my_player.NotifyHit(id, i); //notify other that Enemy wih id has hitten the player with the bullet with idx i
+					if(my_player.__get("life") <= 0)
+						my_player.set_killer(id);
+					Output("hitted myplayer");
+					bullets[i] = null;
+				}	
+			}
+	}
+
+}
+function Enemy::setBullet(pdu){
+
+	Outputln("Received bullet from ", pdu[1], "with id", pdu[3], " by weapon type ", pdu[12], "");
+	var idx = pdu[3];
+	var position = [pdu[4], pdu[5] + 1 , pdu[6] ];
+	var direction = [pdu[7], pdu[8] , pdu[9] ];
+	
+	if (current_type_weapon != pdu[12]){
+		current_type_weapon = pdu[12];
+		changeWeapon(pdu[12]);
+	}
+	if (bullets[idx] == null) {
+		bullets[idx] = Bullet();
+		bullets[idx].init(idx, position ,direction , pdu[10], pdu[11], pdu[12], pdu[13], level, network, id);	
+	} else if (bullets[idx] != null) {
+		var pos_t = pos;
+		pos_t[1] += 1;
+		bullets[idx].SetPosition(pos_t);
+	}
+}
+
+function enemy::incrementKills()
+{
+	kills += 1;
+}
+
+
+function enemy::incrementDeaths()
+{
+	deaths += 1;
+}
+
+
+
+
+#endif

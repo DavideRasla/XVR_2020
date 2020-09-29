@@ -1,0 +1,66 @@
+#ifndef PlatformGOD_S3D_
+#define PlatformGOD_S3D_
+#include "player.s3d"
+class PlatformGOD{
+	
+	var position;
+	var enemies;
+	var player;
+	var level;
+	var network;
+	var platform_mesh;
+	var platform_obj;
+	var sf;
+	init(pos, en, pl, lvl, net);
+	ChangePos();
+	SendPDU_New_Player(Player_joined, position);
+	Draw();
+	SetPosition(pos);
+	GetPosition();
+	
+};
+
+function PlatformGOD::init(pos, en, pl, lvl, net)
+{
+	
+	position = pos;
+	enemies = en;
+	player = pl;
+	level = lvl;
+	network = net;
+	pos[1] +=0.2;
+	platform_mesh = CVmNewMesh(VRP_CIRCLE);
+	sf = platform_mesh.normalize(1);
+	platform_mesh.ModulateMaterials( 124, 122,124 );
+	platform_obj = CVmObj(platform_mesh);
+	platform_obj.SetPosition(pos);
+
+}
+
+function PlatformGOD::Draw()
+{
+	
+	platform_obj.draw();
+
+}
+function PlatformGOD::ChangePos()
+{
+	
+	var temp_pos = level.get_Random_Floor_Pos();
+	temp_pos[1] += 0.2;
+	position = temp_pos;
+	platform_obj.SetPosition(position);
+
+}
+function PlatformGOD::SetPosition(pos)
+{
+	position = pos;
+	platform_obj.SetPosition(pos);
+
+}
+
+function PlatformGOD::GetPosition()
+{
+	return position;
+}
+#endif

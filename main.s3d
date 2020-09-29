@@ -1,0 +1,350 @@
+/* Include s3d symbols */
+#include <Script3d.h>
+#include <Camera.s3d.h>
+
+#include <Enemies.s3d>
+#include "player.s3d"
+#include "level.s3d"
+#include "Config.s3d"
+#include "Graphics.s3d"
+#include "Network.s3d"
+#include "God_Class.s3d"
+
+/* Set global scene parameters */
+SET SCENE_FOV  = 60;
+SET SCENE_NEAR = 0.5;
+SET SCENE_FAR  = 1000;
+var my_id;
+var myplayer;
+var players = array(0);
+var mylevel;
+var my_weapon;
+var my_Graphic;
+var my_channel;
+var platform_god;
+var level_obj_ARRAY;
+// TODO: put your global variables here
+
+/* Camera globals */
+var CamPos = [0.0, 5.0, 30.0]; 	// camera position
+
+/* Light globals */
+var Light0;
+var PosL = [16.0, 16.0, 16.0];	// default light position
+var Time_change_platform;
+/* Position globals */
+
+var Pos_init_player = [2, 0, 2];
+var Actual_NUM_PLAYER = 0; //will be the ID
+var enemies = array(0);
+var Num_enemies = 0;
+var myNetwork;
+/* Function declarations */
+function CameraMoveMouse();
+function DrawGrid(col, size);
+function Draw_Console();
+
+
+
+/***********/
+function OnDownload()
+{
+	// TODO: download your resources here
+	// E.g.: FileDownload("resource.ext");
+	FileDownload("XVRResources.zip");
+}
+
+
+
+
+function OnInit(params)
+{
+	
+	/* initialize camera */
+	CameraGetCurrent().SetPosition(CamPos);
+
+	/* initialize light */
+	Light0 = CVmLight();
+	Light0.SetPosition(PosL);
+	Light0.SetDiffuse(1, 1, 1);
+	Light0.Enable();	
+
+	mylevel = level();
+	mylevel.init("level_3D.txt");
+	platform_god = PlatformGOD();
+	var platform_pos_initial = [0,0,0];
+	myNetwork = NetworkManager();
+	
+	
+
+	my_id = myNetwork.init(&platform_pos_initial);
+	Num_enemies = my_id - 1;
+	my_channel = myNetwork.get_Net_Channel();
+	myplayer = player();
+	myplayer.init(my_id,Pos_init_player,[1,0,0], mylevel, myNetwork);
+
+	var en = 0;
+	if(my_id != 1){
+		for (var i=0; i<Num_enemies; i++) {
+			en = enemy();
+			en.init(i + 1, true, [0,0,0], 0, 0, myplayer, mylevel, myNetwork);
+			aadd(enemies,en);
+		}
+	}
+
+	myplayer.setposition(Pos_init_player);
+	myplayer.first_View();
+	my_Graphic = Graphics();	
+	my_Graphic.get_player(myplayer);
+	my_Graphic.get_Enemies(enemies);
+	if(my_id == 1){//Just the first player creates the platform
+		platform_god.init(mylevel.get_Random_Floor_Pos(), enemies, myplayer, mylevel, myNetwork);	
+	}else{
+		Outputln("God plaform position received", platform_pos_initial);
+		platform_god.init(platform_pos_initial, enemies, myplayer, mylevel, myNetwork);	
+	}
+	myplayer.setPlatform_Pos(platform_god.GetPosition());
+	
+	
+	Time_change_platform = GetTime();
+
+}	
+
+
+var en;
+var endgame = 0;
+
+function CheckEndGame(){
+	for (var i=0; i<len(enemies); i++) {
+		if ( enemies[i].active) {
+				if (enemies[i].__get("kills") == KILLS_TO_WIN){
+					endgame = 1;
+				}
+		} 
+	}
+	if (myplayer.__get("kills") == KILLS_TO_WIN ){
+		endgame = 1;
+	}
+}
+function OnFrame()
+{
+	/* manage camera */
+	CameraMoveMouse();
+	
+
+
+	SceneBegin();	
+	
+if(endgame == 0){
+	DrawGrid([0.5, 0.5, 0.5], 100);
+	mylevel.draw();
+	myplayer.update();
+	myplayer.draw();
+	platform_god.Draw();
+	//myplayer2.draw();
+	//myplayer.draw();
+
+	//myplayer2.update();
+	for (var i=0; i<Num_enemies; i++) {
+		if (enemies[i] != null && enemies[i].active) {
+			enemies[i].update();
+			enemies[i].draw();
+		
+
+		}
+	}
+	if (myplayer.__get("life") <= 0) {
+		for (var i=0; i<Num_enemies; i++) {
+				if (enemies[i].get_ID() == myPlayer.get_killer()){
+					enemies[i].incrementKills();
+				}
+			}	
+			myPlayer.addDeaths();
+			myPlayer.notifyDeath();
+			myPlayer.respawn();
+			myPlayer.incrementDeaths();
+			Outputln("Player died, respawn");
+		}
+	
+	if (keypressed(VK_TAB)) {
+			my_Graphic.draw_Score_Table();
+	}
+	my_Graphic.Draw_Console();	
+	
+	if(my_id == 1 &&  (GetTime() - Time_change_platform) > 60000){
+		Time_change_platform = GetTime();
+		platform_god.ChangePos();
+		var temp_pos_plat = platform_god.GetPosition();
+		myplayer.setPlatform_Pos(temp_pos_plat);
+		var pdu = Vector(4);
+		pdu[0] = PDU_GOD_STATUS;
+		pdu[1] = temp_pos_plat[0];
+		pdu[2] = temp_pos_plat[1];
+		pdu[3] = temp_pos_plat[2];
+		myNetwork.sendPDU(pdu); 
+	}	
+	if (keypressed("g")) {
+			endgame = 1;
+	}
+	CheckEndGame();
+
+	}else{//endgame == 1
+		Outputln("Endgame");
+		my_Graphic.Draw_END_GAME();
+	}
+	SceneEnd();
+}
+
+
+
+function DownloadReady(RequestID)
+{
+	// TODO
+}
+
+
+
+function OnTimer()
+{
+var pdu = array(2);
+for (var recv_iter = 0; recv_iter < 10; recv_iter++) {
+	var sender_ip = "...";
+	var pdu = myNetwork.receivePDU(&sender_ip);
+
+	
+	if(pdu != null){
+		var enemy_id = pdu[1];
+		if(pdu[0] == PDU_JOIN_TYPE){//a player wants to join
+			pdu[0] = -2;
+			pdu[1] = Num_enemies; //num_enemies
+			var platform_pos = platform_god.GetPosition();
+			pdu[2] = platform_pos[0];
+			pdu[3] = platform_pos[1];
+			pdu[4] = platform_pos[2];
+			NetVarSendTo(sender_ip, PORT_CHANNEL, pdu);
+			/*Add an entry in the enemies array */
+		 	var en = enemy();
+		 	Num_enemies++; 
+			en.init(Num_enemies + 1, true, [0,0,0], 0, 0, myplayer, mylevel, myNetwork);
+			aadd(enemies,en);
+
+		}
+		// [0]-typePDU, [1]-sender, [2,3,4]-posXYZ, [5]-angle, [6]-visible/hidden, [7]-animFrame
+		if(pdu[0] == PDU_POSITION){//a player wants to join
+			
+			//enemies[enemy_id].active = true;
+			for (var i=0; i<Num_enemies; i++) {
+				if (enemies[i].get_ID() == enemy_id){
+					enemies[i].changePosition([pdu[2], pdu[3], pdu[4]], pdu[5], pdu[6], pdu[7]);
+				}
+			}
+				
+		}
+		if(pdu[0] == PDU_BULLET){
+			var enemy_id = pdu[1];
+			for (var i=0; i<Num_enemies; i++) {
+				if (enemies[i].get_ID() == enemy_id){
+					enemies[i].setBullet(pdu);
+				}
+			}
+		}
+		if (pdu[0] == PDU_HIT) {
+			var player_hit_id = pdu[1];// da chi � stato colpito
+			var hitted_id = pdu[2]; // chi � stato colpito
+			var bull_idx = pdu[3]; // con quale proiettile
+			if (hitted_id == my_id){
+				for (var i=0; i<Num_enemies; i++) {
+					if (enemies[i].get_ID() == enemy_id){
+						enemies[i].bullets[bull_idx] = null;
+					}
+				}
+			}
+		}
+			
+		if (pdu[0] == PDU_DEATH	) {
+			var killed = pdu[1];
+			var killer = pdu[2];
+			if (killer == my_id) {
+				myPlayer.incrementKills();//increment my kills
+				for (var i=0; i<Num_enemies; i++) {
+					if (enemies[i].get_ID() == enemy_id){
+						enemies[i].incrementDeaths();//increment enemy deaths
+					}
+				}
+			} else {//killer == enemy_id. Increment kills of that enemies
+				for (var i=0; i<Num_enemies; i++) {
+					if (enemies[i].get_ID() == enemy_id){
+						enemies[i].incrementKills();//increment enemy kills
+					}
+				}
+				if (killed == my_id){
+					myPlayer.incrementDeaths();//increment enemy deaths
+				}	
+			}
+		}else if(pdu[0] == PDU_GOD_STATUS){//Gets the new position of the platform
+			var new_pos_temp = [pdu[1], pdu[2], pdu[3]];
+			platform_god.SetPosition(new_pos_temp);
+			myplayer.setPlatform_Pos(new_pos_temp);
+		}
+	}
+	
+	}
+	my_Graphic.get_player(myplayer);
+	my_Graphic.get_Enemies(enemies);//updates of the array
+}
+
+
+function OnEvent(eventID, wparam, lparam){
+	// TODO: put your events handling code here
+}
+
+function OnError(){
+	// TODO: put your errors handling code here
+}
+
+
+function OnExit()
+{
+	// TODO: put your cleanup code here
+}
+
+
+
+// Camera manager (using mouse)
+function CameraMoveMouse()
+{	
+
+	CameraMoveMouse_MBL_LC();
+
+}
+
+
+
+function DrawGrid(col, size)
+{
+	/* let's not mess up current OpenGL status */
+	glPushAttrib(GL_LIGHTING_BIT | GL_LINE_BIT | GL_CURRENT_BIT);
+	
+	glLineWidth(1);
+	glDisable(GL_LIGHTING);
+	glColor(col);
+	var max = size / 2.0;
+	var min = -max;	
+	var step = size / 10.0;
+	
+	glBegin(GL_LINES);
+		for (var i = min; i <= max; i += step)
+		{
+			glVertex(i, 0, max);
+			glVertex(i, 0, min);
+			
+			glVertex(max, 0, i);
+			glVertex(min, 0, i);
+		}
+	glEnd();
+	
+	/* polite restoration of previous OpenGL status */
+	glPopAttrib();
+}
+
+

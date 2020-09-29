@@ -1,0 +1,383 @@
+#ifndef WEAPON_S3D_
+#define WEAPON_S3D
+
+#include "bullet.s3d"
+#include "Config.s3d"
+
+class Weapon
+{
+
+	var weapon_mesh;
+	var weapon_obj;	
+
+	//BULLET
+	var has_shot;
+	var my_bullet;
+	var current_type;
+	var color;
+	var counter_bullets_sent;
+	var Can_Shoot;
+	var Bullets_Available;
+	var Charger_Size;
+	var Num_Charger;
+	var Bullet_for_reload;
+	var Bullet_Taken;
+	var bullet_Array;
+	var Damage;
+	var position;
+	var bullet_to_Shoot;
+	var direction;
+	var Level;
+	var mynetwork;
+	//Effects Audio
+	var shoot_fx;
+	var step_fx;
+	var reload_fx;
+	var id_shooter;
+	var Weapon_texture;
+	var Weapon_material;
+
+/***** METHODS *****/
+	init(sf1, type, pos, dir, lvl, counter_bullet, net);
+	shoot(num_shoot, angle, my_id, already_shoot);
+	reload();
+	drawObjects();
+	reload_Weapon();
+	get_Obj();
+	Full_Recharge();
+	get_Type();
+	update(pos, dir);
+	get_State();
+	set_State(old_state);
+};
+
+
+
+function Weapon::init( sf1, type, pos, dir, lvl,counter_bullet,  net)
+{
+	
+	mynetwork = net;
+	Weapon_texture = CVmTexture("metal.jpg");
+
+	Weapon_material = CVmMaterial();
+	//mynetwork.print();
+	if (type == WEAPON_TYPE_ROCKET){
+		position = pos;
+		direction = dir;
+		current_type = type;
+		has_shot = 0;
+		bullet_to_Shoot = 0;
+		id_shooter = 0;
+		Can_Shoot = 1;
+		bullet_Array  = Array(ROCKET_CHARGER_SIZE);
+		for (var i=0; i < ROCKET_CHARGER_SIZE; i++)
+				bullet_Array[i] = null;
+		Bullets_Available = ROCKET_CHARGER_SIZE;
+		Charger_Size = ROCKET_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+		Bullet_Taken = 0;
+		Damage = ROCKET_BULLET_DAMAGE;
+		Bullet_for_reload = Num_Charger * Charger_Size;	
+		shoot_fx = CVmVRAWAV("shoot.wav");
+		
+		weapon_mesh = CVMNewMesh("railgun.aam");
+	}	
+	if (type == WEAPON_TYPE_RAILGUN){
+		position = pos;
+		direction = dir;
+		current_type = type;
+		has_shot = 0;
+		bullet_to_Shoot = 0;
+		Can_Shoot = 1;
+    	bullet_Array  = Array(RAILGUN_CHARGER_SIZE);
+			for (var i=0; i < RAILGUN_CHARGER_SIZE; i++)
+				bullet_Array[i] = null;
+		Bullets_Available = RAILGUN_CHARGER_SIZE;
+		Charger_Size = RAILGUN_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+		Bullet_Taken = 0;
+		Bullet_for_reload = Num_Charger * Charger_Size;	
+		Damage = RAILGUN_BULLET_DAMAGE;
+		shoot_fx = CVmVRAWAV("shoot.wav");
+
+		weapon_mesh = CVmNewMesh("rocketl.AAM");
+	}	
+	
+	if (type == WEAPON_TYPE_KILLER){
+		position = pos;
+		direction = dir;
+		current_type = type;
+		has_shot = 0;
+		bullet_to_Shoot = 0;
+		Can_Shoot = 1;
+    		bullet_Array  = Array(KILLER_CHARGER_SIZE);
+			for (var i=0; i < KILLER_CHARGER_SIZE; i++)
+				bullet_Array[i] = null;
+		Bullets_Available = KILLER_CHARGER_SIZE;
+		Charger_Size = KILLER_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+		Bullet_Taken = 0;
+		Bullet_for_reload = Num_Charger * Charger_Size;	
+		Damage = KILLER_BULLET_DAMAGE;
+		shoot_fx = CVmVRAWAV("shoot.wav");
+		Weapon_material.Shininess = 100;
+		Weapon_material.SetTexture(Weapon_texture);
+		weapon_mesh = CVmNewMesh("KILLER.AAM");
+		weapon_mesh.ForceMaterial(Weapon_material);
+		//weapon_mesh.Scale(sf1+0.3);
+	}	
+	if (type == WEAPON_TYPE_KNIFE){
+		position = pos;
+		direction = dir;
+		current_type = type;
+		has_shot = 0;
+		bullet_to_Shoot = 0;
+		Can_Shoot = 1;
+    		bullet_Array  = Array(KNIFE_CHARGER_SIZE);
+			for (var i=0; i < KNIFE_CHARGER_SIZE; i++)
+				bullet_Array[i] = null;
+		Bullets_Available = KNIFE_CHARGER_SIZE;
+		Charger_Size = KNIFE_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+		Bullet_Taken = 0;
+		Bullet_for_reload = Num_Charger * Charger_Size;	
+		Damage = KNIFE_BULLET_DAMAGE;
+		shoot_fx = CVmVRAWAV("shoot.wav");//TODO: cambiare suono
+
+		Weapon_material.Shininess = 100;
+		Weapon_material.SetTexture(Weapon_texture);
+		weapon_mesh = CVmNewMesh("Knife.AAM");
+		weapon_mesh.ForceMaterial(Weapon_material);
+	}
+	if (type == WEAPON_TYPE_GUN){
+		position = pos;
+		direction = dir;
+		current_type = type;
+		has_shot = 0;
+		bullet_to_Shoot = 0;
+		Can_Shoot = 1;
+    		bullet_Array  = Array(GUN_CHARGER_SIZE);
+			for (var i=0; i < GUN_CHARGER_SIZE; i++)
+				bullet_Array[i] = null;
+		Bullets_Available = GUN_CHARGER_SIZE;
+		Charger_Size = GUN_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+		Bullet_Taken = 0;
+		Bullet_for_reload = Num_Charger * Charger_Size;	
+		Damage = GUN_BULLET_DAMAGE;
+		shoot_fx = CVmVRAWAV("shoot.wav");//TODO: cambiare suono
+
+		Weapon_material.Shininess = 100;
+		Weapon_material.SetTexture(Weapon_texture);
+		weapon_mesh = CVmNewMesh("Revolver.AAM");
+		weapon_mesh.ForceMaterial(Weapon_material);
+		
+	}
+
+	Level = lvl;
+	counter_bullets_sent = counter_bullet;
+
+	weapon_mesh.scale(sf1);
+	//weapon_mesh.CenterBoundingBox();
+
+	//weapon_mesh.ModulateMaterials([1.0, 0.0, 0.0]);
+	weapon_obj = CVMObj(weapon_mesh,VR_RGBA_TEXTURE );
+return weapon_obj;
+
+	
+
+}
+function Weapon::Full_Recharge(){
+	if (current_type == WEAPON_TYPE_ROCKET){
+		Bullets_Available = ROCKET_CHARGER_SIZE;
+		Charger_Size = ROCKET_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+	}	
+	if (current_type == WEAPON_TYPE_RAILGUN){
+
+		Bullets_Available = RAILGUN_CHARGER_SIZE;
+		Charger_Size = RAILGUN_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+
+	}	
+	
+	if (current_type == WEAPON_TYPE_KILLER){
+
+		Bullets_Available = KILLER_CHARGER_SIZE;
+		Charger_Size = KILLER_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+
+	}	
+	if (current_type == WEAPON_TYPE_KNIFE){
+
+		Bullets_Available = KNIFE_CHARGER_SIZE;
+		Charger_Size = KNIFE_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+
+	}
+	if (current_type == WEAPON_TYPE_GUN){
+
+		Bullets_Available = GUN_CHARGER_SIZE;
+		Charger_Size = GUN_CHARGER_SIZE;
+		Num_Charger = WEAPON_INITIAL_CHARGER_NUM;
+	}
+}
+
+function Weapon::shoot(num_shoot, angle, my_id, already_shoot){
+	id_shooter = my_id;
+	var bullet_shooted = already_shoot;
+	if( Can_Shoot == 1){
+
+		if( Bullets_Available - num_shoot >= 0){
+
+			
+			Bullets_Available -=  num_shoot;	
+
+			Outputln("Bullets_Available before_shoot",Bullets_Available);
+			bullet_to_Shoot = num_shoot;
+			has_shot = 1;
+			if(Bullets_Available == 0){
+				//devo ricaricare
+				Can_Shoot = 0;
+			}
+		}
+		else{
+			bullet_to_Shoot =  Bullets_Available;
+			Bullets_Available = 0;
+			Can_Shoot = 0;
+				
+			Outputln("Bullets_Available After_shoot", Bullets_Available);
+		}
+
+		for( var i = 0; i < bullet_to_Shoot; i++){ //shot as many bullet as necessary
+			trace(position,direction);
+			my_bullet = bullet();
+			bullet_Array[i] = my_bullet;
+
+			var bullet_Traslation = position + [0.16*(-direction.z), 1.08, 0.16*(direction.x)];
+			bullet_Traslation[0] = bullet_Traslation[0] + direction[0] * + 0.2 ;
+			bullet_Traslation[2] = bullet_Traslation[2] + direction[2] * + 0.2 ;
+			bullet_shooted ++;
+
+			if(current_type == WEAPON_TYPE_KNIFE){
+				bullet_Array[i].init(bullet_shooted, bullet_Traslation,direction, KNIFE_BULLET_DAMAGE, KNIFE_BULLET_SPEED, current_type, angle, Level, mynetwork, my_id);	
+			}
+			else if(current_type == WEAPON_TYPE_RAILGUN){
+				bullet_Array[i].init(bullet_shooted, bullet_Traslation,direction, RAILGUN_BULLET_DAMAGE, RAILGUN_BULLET_SPEED, current_type, angle, Level, mynetwork, my_id);	
+			}else if(current_type == WEAPON_TYPE_KILLER){
+				bullet_Array[i].init(bullet_shooted, bullet_Traslation,direction, KILLER_BULLET_DAMAGE, KILLER_BULLET_SPEED, current_type, angle, Level, mynetwork, my_id);	
+			}else if(current_type == WEAPON_TYPE_GUN){
+				bullet_Array[i].init(bullet_shooted, bullet_Traslation,direction, GUN_BULLET_DAMAGE, GUN_BULLET_SPEED, current_type, angle, Level, mynetwork, my_id);	
+			}else{
+       			bullet_Array[i].init(bullet_shooted, bullet_Traslation,direction, ROCKET_BULLET_DAMAGE, ROCKET_BULLET_SPEED, current_type, angle, Level, mynetwork, my_id );	
+			}
+			shoot_fx.play();
+			
+		}
+		//has_shot = 0;
+	}else{
+		//todo if cannot shoot
+		Outputln("No bullets");
+	}
+return bullet_shooted;
+}
+
+function Weapon::reload_Weapon(){
+
+	if(Bullets_Available == 0){//simplest case
+		if(Num_Charger > 0){ //available charger in the pocket
+			Num_Charger -= 1;
+			Bullet_for_reload = Num_Charger * Charger_Size;
+			Bullets_Available = Charger_Size;
+			Bullet_Taken = 0;
+			Can_Shoot = 1;
+			
+		}else{
+			//Nothing; no bullets and no charger
+		}
+	}else{ //Bullets_Available > 0
+		if(Num_Charger > 0){
+			var bullet_to_Add = Charger_Size - Bullets_Available;
+			if(Bullet_for_reload > bullet_to_Add){ //case that there are enought bullets	
+				Bullets_Available = Charger_Size;
+				Bullet_for_reload -= bullet_to_Add;
+				Bullet_Taken += bullet_to_Add;
+				if(Bullet_Taken > Charger_Size){
+					Bullet_Taken = Bullet_Taken % Charger_Size;
+					Num_Charger -=1;
+				}
+			}else{
+				bullet_to_Add = Bullet_for_reload;
+				Bullets_Available += bullet_to_Add;
+				Num_Charger -=1;
+				Bullet_Taken += bullet_to_Add;
+			}
+		}
+		
+	}
+}
+
+function Weapon::get_Obj(){
+	return weapon_obj;
+}
+function Weapon::get_Type(){
+	return current_type;
+}
+function Weapon::drawObjects(){
+	if(has_shot == 1){
+		for( var i = 0; i < bullet_to_Shoot; i++){
+			
+			if(bullet_Array[i].__get("hit") == 0 ){//if is moving
+				
+				bullet_Array[i].update(id_shooter, position);
+				bullet_Array[i].draw();
+			}
+		}
+	}
+	
+}
+
+
+
+function Weapon::update(pos, dir)
+{
+	position = pos;
+	direction = dir;
+	
+}
+
+
+
+function Weapon::get_State(){
+
+	var Stat = Array(6);
+	Stat[0] = Bullets_Available;
+	Stat[1] = Charger_Size;
+	Stat[2] = Num_Charger;
+	Stat[3] = Bullet_for_reload;
+	Stat[4] = Bullet_Taken;
+	Stat[5] = bullet_Array;
+	return Stat;
+}
+
+function Weapon::set_State(old_state){
+
+	
+	Bullets_Available = old_state[0];
+	Charger_Size = old_state[1];
+	Num_Charger = old_state[2];
+	Bullet_for_reload = old_state[3];
+	Bullet_Taken = old_state[4];
+	bullet_Array = old_state[5];
+
+}
+
+#endif
+
+
+
+
+
+
+
+

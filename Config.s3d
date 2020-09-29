@@ -1,0 +1,67 @@
+#ifndef CONFIG_S3D_
+#define CONFIG_S3D_
+
+/*********** NETWORK *********/
+#define IP_BROADCAST "192.168.1.12"
+#define PDU_JOIN_TYPE -1
+#define PDU_POSITION   2
+#define PDU_BULLET     3
+#define PDU_HIT		 4
+#define PDU_DEATH	     5
+#define PDU_GOD_STATUS 6
+#define PORT_CHANNEL	50024
+
+/*********** MOVING ***********/ 
+
+#define SWAT_START_WALK 16
+#define SWAT_END_WALK   48
+
+/*********** CAMERA ***********/ 
+
+#define CAMERA_OFF_Z -0.15
+#define CAMERA_OFF_Y 1
+#define CAMERA_OFF_X -0.15
+
+
+/********** PLAYER *******/
+
+#define PLAYER_LIFE 100
+#define SCALE_BOX_COLLISION 0.55, 1.6, 0.55
+#define SWAT_JUMP_H 3.0
+/********** GAME *********/
+#define KILLS_TO_WIN 				5 //todo 10
+/*********** WEAPON ***********/ 
+#define WEAPON_TYPE_ROCKET            0
+#define WEAPON_TYPE_RAILGUN           1
+#define WEAPON_TYPE_KILLER 		  2
+#define WEAPON_TYPE_KNIFE 			  3
+#define WEAPON_TYPE_GUN 			  4
+
+#define WEAPON_INITIAL_CHARGER_NUM    5
+
+#define ROCKET_CHARGER_SIZE          30
+#define ROCKET_BULLET_DAMAGE         20
+#define ROCKET_BULLET_SPEED          0.8
+#define ROCKET_NUM_TO_SHOOT          1
+
+#define RAILGUN_CHARGER_SIZE         50 
+#define RAILGUN_BULLET_DAMAGE        15
+#define RAILGUN_BULLET_SPEED         0.3
+#define RAILGUN_NUM_TO_SHOOT         4
+
+#define KILLER_CHARGER_SIZE         10
+#define KILLER_BULLET_DAMAGE        50
+#define KILLER_BULLET_SPEED         0.2
+#define KILLER_NUM_TO_SHOOT         1
+
+#define GUN_CHARGER_SIZE         10 
+#define GUN_BULLET_DAMAGE        10
+#define GUN_BULLET_SPEED         0.5
+#define GUN_NUM_TO_SHOOT         1
+
+#define KNIFE_CHARGER_SIZE         10
+#define KNIFE_BULLET_DAMAGE        10
+#define KNIFE_BULLET_SPEED         0.5
+#define KNIFE_NUM_TO_SHOOT         1
+
+#endif

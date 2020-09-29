@@ -1,0 +1,149 @@
+#ifndef GRAPHICS_S3D_
+#define GRAPHICS_S3D_
+
+#include "Config.s3d"
+
+
+class Graphics 
+{
+	var myplayer;
+	var enemies;
+	var my_weapon;
+
+
+/***** METHODS *****/
+	get_player(p);
+	get_Enemies(e);
+	Draw_Console();
+	draw_Score_Table();
+	Draw_END_GAME();
+};
+
+function Graphics::get_player(p){
+	myplayer = p;
+}
+
+
+function Graphics::Draw_Console(){
+	ConsoleFont("Calibri",15);	
+
+	my_weapon = myplayer.get_Weapon();
+	var gray_title = [0.3,0.3,0.3,1];
+	var background_rect = [1,1,1,0.5];
+	
+	ConsoleColor(background_rect);
+	ConsoleFilledRect(0,0.12,0.15,0.12);
+	ConsoleFont("Calibri",35);	
+	ConsoleColor([0, 0, 1, 1]);
+	var percentual_life = (myplayer.__get("life"));
+	ConsoleText(0.02, 0.05, str(percentual_life) + "%");
+	ConsoleFont("Calibri",20);	
+	ConsoleColor(gray_title);
+	ConsoleText(0.03, 0.01, "Health");
+	ConsoleFont("Calibri",15);	
+	
+	ConsoleColor(background_rect);
+	ConsoleFilledRect(0.152,0.12,0.25,0.12);
+
+	ConsoleFont("Calibri",35);	
+	ConsoleColor([0, 0, 1, 1]);
+	if(my_weapon.__get("Bullets_Available") == 0){
+		ConsoleColor([255, 0, 0]);
+	}
+	ConsoleText(0.155, 0.05,str(my_weapon.__get("Bullets_Available")) + "/" +str(my_weapon.__get("Charger_Size")));
+	ConsoleFont("Calibri",20);	
+	ConsoleColor(gray_title);
+	ConsoleText(0.155, 0.01, "Bullets");
+	ConsoleFont("Calibri",18);	
+	ConsoleColor([0, 0, 1, 1]);
+	ConsoleText(0.25, 0.01,"Charger : " + str(my_weapon.__get("Num_Charger")));
+		
+
+	
+	ConsoleColor(background_rect);
+	ConsoleFilledRect(0.403,0.12,0.452,0.12);		
+	ConsoleColor([0, 0, 1, 1]);
+	ConsoleFont("Calibri",20);	
+	ConsoleText(0.415, 0.09,"GOD_MODE : " + str(myplayer.__get("GOD_MODE")));
+	ConsoleText(0.415, 0.05,"NUM_ENEMIES : " + str(len(enemies)));
+	ConsoleFont("Calibri",20);	
+	ConsoleColor(gray_title);
+
+	ConsoleColor(gray_title);
+	ConsoleFont("Calibri",20);	
+	//ConsoleText(0.61, 0.01, "Current Weapon");
+	
+	ConsoleColor(background_rect);
+	ConsoleFilledRect(0.8,0.12,0.2,0.12);
+
+}
+
+function Graphics::draw_Score_Table()
+{
+	var offset = 0;
+	// box
+	ConsoleColor(0.4, 0.6, 1.0);
+	ConsoleFilledRect(0.24, 0.76, 0.52, 0.52);
+	ConsoleColor(0.9, 0.9, 0.9);
+	ConsoleFilledRect(0.25, 0.75, 0.5, 0.5);
+	// header
+	ConsoleFont("Impact", 20);
+	ConsoleColor(0.0, 0.0, 0.0);
+	ConsoleText(0.3, 0.7, "Player ID");
+	ConsoleText(0.55, 0.7, "K");
+	ConsoleText(0.65, 0.7, "D");
+	// scores
+	ConsoleFont("Impact", 16);
+	ConsoleColor(1.0, 0.0, 0.0);
+	ConsoleText(0.3, 0.62 - offset, str(myplayer.__get("my_id")));
+	ConsoleText(0.55, 0.62 - offset, str(myplayer.__get("kills")));
+	ConsoleText(0.65, 0.62 - offset, str(myplayer.__get("deaths")));
+	offset += 0.05;
+	for (var i=0; i<len(enemies); i++) {
+		if ( enemies[i].active) {
+			ConsoleColor(0.0, 0.0, 0.0);
+			ConsoleText(0.3, 0.62 - offset, str(enemies[i].__get("id")));
+			ConsoleText(0.55, 0.62 - offset, str(enemies[i].__get("kills")));
+			ConsoleText(0.65, 0.62 - offset, str(enemies[i].__get("deaths")));
+			offset += 0.05;
+		} 
+	}
+}
+function Graphics::get_Enemies(e){
+	enemies = e;
+}
+
+function Graphics::Draw_END_GAME(){
+	var offset = 0;
+	// box
+	ConsoleColor(0.4, 0.6, 1.0);
+	ConsoleFilledRect(0, 0, 0.92, 0.92);
+	ConsoleColor(0.9, 0.9, 0.9);
+	ConsoleFilledRect(0.25, 0.75, 0.5, 0.2);
+	// header
+	ConsoleFont("Impact", 20);
+	ConsoleColor(0.0, 0.0, 0.0);
+	ConsoleText(0.3, 0.7, "The winner is the player ID");
+
+var winner = 0;
+	for (var i=0; i<len(enemies); i++) {
+		if ( enemies[i].active) {
+				if (enemies[i].__get("kills") == KILLS_TO_WIN){
+					winner = enemies[i].__get("id") ;
+				}
+		} 
+	}
+	if (myplayer.__get("kills") == KILLS_TO_WIN ){
+		winner = myplayer.__get("my_id");
+	}
+	// scores
+	ConsoleFont("Impact", 16);
+	ConsoleColor(1.0, 0.0, 0.0);
+	ConsoleText(0.64, 0.7 , str(winner));
+
+	offset += 0.05;
+}
+
+
+#endif
+

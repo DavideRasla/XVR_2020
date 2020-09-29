@@ -1,0 +1,194 @@
+#include "Config.s3d"
+
+class bullet
+{
+	var position;
+	var id;
+	var id_player;
+	var direction;
+	var speed;
+	var mesh;
+	var ang;
+	var Network;
+	var obj;
+	var damage;
+	var level;
+	var Level_matrix; 
+	var weapon;
+	var noise_direction;
+	var hit;
+	init(id_bullet, pos, dir, dam, spd, weapon_type, angle, lvl, mynetwork, my_id); 
+	update(id_shooter, Pos_player);
+	draw();
+	setDamage(dam);
+	getDamage(dam);
+	getPosition();
+	get_Mesh();
+	setSpeed(spd);
+	SetPosition(pos);
+	is_Colliding();
+	sendBulletPosPDU();
+};
+
+function bullet::is_Colliding(){
+
+	var i = int(position.z);
+  	var j = int(position.x);
+  	var hit = 0;
+ 	if (Level_matrix[i][j] != null)
+		hit = Level_matrix[i][j];  
+		
+	if (hit > int(position.y))
+		return True;
+	
+	return false;
+}
+function addNoise(direction){
+	
+	return direction[0] / (5 + rand(5));
+}
+function bullet::init(id_bullet, pos, dir, dam, spd, weapon_type, angle, lvl, mynetwork, my_id)
+{
+	position  = pos;
+	direction = dir;
+	id = id_bullet;
+	id_player = my_id;
+	Outputln("Player with ID ", id_player, " created bullet with id", id_bullet);
+	Network = mynetwork;
+	level = lvl;
+	ang = angle;
+	Level_matrix = level.__get("level_matrix");
+	hit = 0;
+	weapon = weapon_type;
+	if(weapon_type == WEAPON_TYPE_RAILGUN ){
+		var noise_direction = addNoise(direction);
+		direction = [ direction[0]+noise_direction, direction[1], direction[2]+noise_direction];
+		speed = spd;
+		//mesh = m; //todo: SPEED UP?: real bullets slow down
+		//Outputln("Noise_bullet", noise_direction);
+		//mesh =  CVMNewMesh("BULLET_REAL.aam");
+		mesh = CVMNewMesh(VRP_SPHERE);
+		//var sf1 = mesh.normalize(0.7);
+		mesh.Scale(0.1);
+		obj = CVmObj(mesh);
+		damage = dam;
+		obj.SetPosition(position);
+		
+	}else if( weapon_type == WEAPON_TYPE_KNIFE){//KNIFE BULLET CODE
+		speed = spd;	
+		mesh = CVMNewMesh("Knife.aam");
+		mesh.Scale(0.1);
+		obj = CVmObj(mesh);
+		obj.setrotation(angle*180.0/PI,0,1,0);
+		obj.rotate(90,0,0,1);
+		damage = dam;
+		position[1] -= 0.4;
+		obj.SetPosition(position);
+	}else if( weapon_type == WEAPON_TYPE_KILLER){//KNIFE BULLET CODE
+		speed = spd;	
+		mesh = CVMNewMesh(VRP_SPHERE);
+		//var sf1 = mesh.normalize(0.7);
+		mesh.Scale(0.3);
+		obj = CVmObj(mesh);
+		damage = dam;
+		obj.SetPosition(position);
+	}else {
+		speed = spd;
+		mesh = CVMNewMesh(VRP_SPHERE);
+		mesh.Scale(0.1);
+		obj = CVmObj(mesh);
+		damage = dam;
+		obj.SetPosition(position);
+	}
+
+	
+}
+
+function bullet::get_Mesh(){
+	return mesh;
+}
+function bullet::SetPosition(pos){
+	position = pos;
+}
+function bullet::sendBulletPosPDU(){
+	
+	var pdu = vector(15);
+	Outputln("Player with ID ", id_player, " sent Bullet with ", id);
+	pdu[0] = PDU_BULLET ;
+	pdu[1] = id_player;
+	pdu[2] = 0;
+	pdu[3] = id; //id bullet
+	pdu[4] = position.x;
+	pdu[5] = position.y;
+	pdu[6] = position.z;
+	pdu[7] = direction.x;
+	pdu[8] = 0;
+	pdu[9] = direction.z;
+	pdu[10] = damage;
+	pdu[11] = speed;
+	pdu[12] = weapon;
+	pdu[13] = ang;//TODO: fix angle
+	pdu[14] = 0;
+	
+	if( pdu[1] != 0 ){
+		var sent = NetVarSendTo(IP_BROADCAST, 50024, pdu);//todo; va sistemato
+		}
+
+}
+
+function bullet::setDamage(dam){
+	damage = dam;
+}
+
+function bullet::getDamage(dam){
+	return damage;
+}
+function bullet::setSpeed(spd){
+	speed = spd;
+}
+
+function bullet::getPosition(){
+	return position;
+}
+function bullet::update(id_shooter, Pos_player)
+{	
+	if( hit == 0){
+		var old_pos = position;
+		
+	
+		position += direction*speed;
+		obj.SetPosition(position);
+		
+		if(is_Colliding()){
+			position = old_pos;
+			obj.SetPosition(position);
+			Outputln("BULLET with id", id, " COLLIDED");
+			hit = 1;
+		}
+		if (id_player != id_shooter && (modulus(Pos_player.x_z - position.x_z) < 0.7) && (position.y - Pos_player.y) < 1.8) {
+				//hit_body_fx.play();
+				hit = 2;
+			Outputln("Shooter with id ", id_shooter, " shoot ", id_player);		
+		}
+	//Outputln("Modulus", modulus(Pos_player.x_z - position.x_z), "and pos",(position.y - Pos_player.y));
+
+/* DOESN'T WORKS IN XVR
+ 	var bullet_pdu = Network.sendBulletPosPDU(id, weapon, damage, position, direction, weapon, 0);
+	network.sendPDU(bullet_pdu);	
+	*/	
+	var bullet_pdu = sendBulletPosPDU();
+		
+	}
+return hit;
+}
+
+function bullet::draw()
+{
+	if( hit == 0){
+		if(weapon == WEAPON_TYPE_KNIFE)
+			obj.rotate(30,0,1,0);
+			
+		obj.draw();		
+	}
+
+}

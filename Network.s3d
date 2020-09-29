@@ -1,0 +1,178 @@
+#ifndef NETWORK_S3D_
+#define NETWORK_S3D_
+#include <Script3d.h>
+#include "Config.s3d"
+
+class NetworkManager {
+
+	// UDP channel
+	var net_channel;
+	
+	// Network parameters
+	var MY_ID;
+	var Num_Enemies;
+	// Stats
+	var in_traffic;
+	var out_traffic;
+
+	init(platform_pos_initial);
+	SendPlayerPosPDU(pos, angle, visible, frame);
+	sendBulletPosPDU(id, current_type, damage, position, direction, weapon_type, angle);
+	Create_HIT_PDU(hitter,  bull_idx);
+	Create_Kill_PDU(killer);
+	sendPDU(pdu);
+	receivePDU(sender);
+	get_Num_enemies();
+	get_Net_Channel();
+};
+
+
+/* Initialize the network manager */
+function NetworkManager::init(platform_pos_initial)
+{
+	MY_ID = -1;
+	out_traffic = 0;
+	net_channel= NetCreateChannel(50024,"0.0.0.0",VR_NO_BLOCKING);
+	Outputln("Created Net_channel",net_channel);
+	Num_Enemies = 0;
+
+	var pdu = vector(5);
+	pdu[0] = PDU_JOIN_TYPE; //-1 means that a player wants to join
+	pdu[1] = -1; // is going to contains the numers of enemies, if any
+	pdu[2] = -1; // is going to contains the position of the platform X
+	pdu[3] = -1; // is going to contains the position of the platform Y
+	pdu[4] = -1; // is going to contains the position of the platform Z
+	var res = NetVarSendTo(IP_BROADCAST, 50024, pdu);
+	Outputln("Sent join request for id:");
+
+	var sender_ip = "...";
+	var count = 0;
+	var recv_data = null;
+	while( (count < 100 && recv_data == null) || (recv_data != null && recv_data[0] != -2 )){
+	recv_data = NetVarReceiveFrom(net_channel, &sender_ip);
+	Outputln("count i:", count);
+	Sleep(10);//waits 1000ms
+	count ++;
+	}
+	Outputln("count i:", count," received id:", recv_data);
+	//recv_data[1] contains the number of the enemies for the players
+	if(recv_data == null){// nobody ansewered, first player 
+		MY_ID = 1;
+		Num_Enemies = 0;
+	}else{
+		MY_ID =  recv_data[1] + 2;//num_enemies for the player + 2
+		Num_Enemies =  recv_data[1] + 1 ;	
+		platform_pos_initial = [recv_data[2], recv_data[3], recv_data[4]];
+	}
+	
+	Outputln("I got this id:",MY_ID);
+	return MY_ID;
+}
+
+function NetworkManager::get_Num_enemies(){
+	return Num_Enemies;
+}
+function NetworkManager::get_Net_Channel(){
+	return net_channel;
+}
+
+
+
+
+function NetworkManager::SendPlayerPosPDU(pos, angle, visible, frame)
+{
+	var pdu = vector(8);
+	
+	pdu[0] = PDU_POSITION;
+	pdu[1] = MY_ID;
+	pdu[2] = pos.x;
+	pdu[3] = pos.y;
+	pdu[4] = pos.z;
+	pdu[5] = angle;
+	pdu[6] = visible;
+	pdu[7] = frame;
+
+	return pdu;
+}
+
+
+ function NetworkManager::sendBulletPosPDU(id, current_type, damage, position, direction, weapon_type, angle)
+ {
+ 	var pdu = vector(15);
+	
+	pdu[0] = PDU_BULLET ;
+	pdu[1] = MY_ID;
+	pdu[2] = current_type;
+	pdu[3] = id; //id bullet
+	pdu[4] = position.x;
+	pdu[5] = position.y;
+	pdu[6] = position.z;
+	pdu[7] = direction.x;
+	pdu[8] = direction.y;
+	pdu[9] = direction.z;
+	pdu[10] = damage;
+	pdu[11] = 0;
+	pdu[12] = weapon_type;
+	pdu[13] = 0;
+	pdu[14] = 0;
+	
+	return pdu;	
+ }
+
+
+function NetworkManager::Create_HIT_PDU(hitter, bull_idx)
+{
+	var pdu = vector(5);
+	
+	pdu[0] = PDU_HIT;
+	pdu[1] = MY_ID;
+	pdu[2] = hitter;
+	pdu[3] = bull_idx;
+	
+	return pdu;
+}
+
+
+function NetworkManager::Create_Kill_PDU(killer)
+{
+	var pdu = vector(3);
+	
+	pdu[0] = PDU_DEATH;
+	pdu[1] = MY_ID;
+	pdu[2] = killer;
+	
+	return pdu;
+}
+
+
+
+
+function NetworkManager::sendPDU(pdu)
+{
+	// Update stats
+   // updateOutTrafficStats(getTime(), len(pdu));
+    
+    // Send
+   
+	var res = NetVarSendTo(IP_BROADCAST, 50024, pdu);//todo; va sistemato
+}
+
+
+function NetworkManager::receivePDU(sender)
+{
+	var sender_ip = "...";
+	var recv_data = NetVarReceiveFrom(net_channel, &sender_ip);
+
+	if (recv_data != null && recv_data[1] != MY_ID) { 	// avoid your own data
+		// Update stats
+		//updateOutTrafficStats(getTime(), len(recv_data));
+		Outputln("Received PDU type", recv_data[0], " from ", recv_data[1]);
+		sender = sender_ip;
+		return recv_data;
+	} else {
+		sender = 0;
+		return null;
+	}
+}
+
+#endif
